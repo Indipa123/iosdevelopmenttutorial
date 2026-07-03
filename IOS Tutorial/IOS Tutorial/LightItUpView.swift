@@ -69,6 +69,8 @@ struct LightItUpView: View {
     @AppStorage("lightItUpHighScore") private var highScore = 0
     @AppStorage("lightItUpRoundLength") private var roundLength = 60
 
+    @Environment(\.horizontalSizeClass) private var hSize
+
     @State private var cards: [LightCard] = []
     @State private var score = 0
     @State private var lives = 3
@@ -94,27 +96,37 @@ struct LightItUpView: View {
     @State private var gameTask: Task<Void, Never>?
     @State private var countdownTask: Task<Void, Never>?
 
+    private var isRegularWidth: Bool { hSize == .regular }
+    private var contentMaxWidth: CGFloat { isRegularWidth ? 640 : 360 }
+    private var outerHorizontalPadding: CGFloat { isRegularWidth ? 28 : 16 }
+
     var body: some View {
         ZStack {
             WallpaperBackground()
 
-            VStack(spacing: 18) {
-                statsHeader
+            GeometryReader { proxy in
+                let contentWidth = max(0, min(proxy.size.width - outerHorizontalPadding * 2, contentMaxWidth))
 
-                levelBadge
+                VStack(spacing: 18) {
+                    statsHeader
 
-                timeBar
+                    levelBadge
 
-                Spacer(minLength: 8)
+                    timeBar
 
-                cardGrid
-                    .padding(.horizontal, 12)
+                    Spacer(minLength: 8)
 
-                Spacer(minLength: 8)
+                    cardGrid
+                        .padding(.horizontal, 12)
+
+                    Spacer(minLength: 8)
+                }
+                .frame(width: contentWidth)
+                .clipped()
+                .padding(.top, 8)
+                .padding(.bottom, 18)
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
             }
-            .padding(.top, 8)
-            .padding(.bottom, 18)
-            .padding(.horizontal, 18)
 
             Color.red
                 .opacity(penaltyFlashOpacity)
@@ -176,7 +188,12 @@ struct LightItUpView: View {
     // MARK: - Stats Header
 
     private var statsHeader: some View {
-        HStack(spacing: 12) {
+        let columns = Array(
+            repeating: GridItem(.flexible(minimum: 0), spacing: 8),
+            count: 3
+        )
+
+        return LazyVGrid(columns: columns, spacing: 8) {
             stat(title: "SCORE", value: "\(score)", color: .yellow, scale: scoreBump)
             stat(title: "TIME", value: "\(timeRemaining)", color: timeRemaining <= 5 ? .red : .white)
             livesView
@@ -189,12 +206,16 @@ struct LightItUpView: View {
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundColor(.white.opacity(0.65))
                 .tracking(1.2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Text(value)
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .foregroundColor(color)
                 .shadow(color: color.opacity(0.7), radius: 6)
                 .scaleEffect(scale)
                 .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
@@ -214,10 +235,12 @@ struct LightItUpView: View {
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundColor(.white.opacity(0.65))
                 .tracking(1.2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             HStack(spacing: 4) {
                 ForEach(0..<3, id: \.self) { i in
                     Image(systemName: i < lives ? "heart.fill" : "heart")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 15, weight: .bold))
                         .foregroundColor(i < lives ? .red : .white.opacity(0.3))
                         .shadow(color: i < lives ? .red.opacity(0.6) : .clear, radius: 6)
                         .scaleEffect(heartScale[i])
@@ -301,7 +324,7 @@ struct LightItUpView: View {
 
     private var cardGrid: some View {
         let columns = Array(
-            repeating: GridItem(.flexible(), spacing: 14),
+            repeating: GridItem(.flexible(minimum: 0), spacing: 14),
             count: currentLevel.columns
         )
 
@@ -316,6 +339,7 @@ struct LightItUpView: View {
             }
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.75), value: currentLevel)
+        .animation(.spring(response: 0.35, dampingFraction: 0.72), value: cards.map(\.id))
     }
 
     // MARK: - Start Overlay
@@ -341,7 +365,7 @@ struct LightItUpView: View {
                     .shadow(color: .cyan.opacity(0.7), radius: 12)
                     .tracking(3)
 
-                Text("Tap lit cards before they fade.\nGrid grows. Window shrinks.")
+                Text("Tap lit cards before they fade.\nCards move. Window shrinks.")
                     .font(.system(size: 15, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.85))
                     .multilineTextAlignment(.center)
@@ -495,10 +519,10 @@ struct LightItUpView: View {
 
     private func levelDescription(for level: LightLevel) -> String {
         switch level {
-        case .L1: return "3 CARDS  ·  1.5s WINDOW"
-        case .L2: return "4 CARDS  ·  1.2s WINDOW"
-        case .L3: return "6 CARDS  ·  1.0s WINDOW"
-        case .L4: return "9 CARDS  ·  0.8s  ·  ×2 LIT"
+        case .L1: return "3 CARDS  ·  MOVING"
+        case .L2: return "4 CARDS  ·  FASTER MOVES"
+        case .L3: return "6 CARDS  ·  QUICK WINDOW"
+        case .L4: return "9 CARDS  ·  ×2 LIT"
         }
     }
 
@@ -599,9 +623,34 @@ struct LightItUpView: View {
                 }
                 AudioServicesPlaySystemSound(1306)
 
-                let waitNanos = UInt64(max(0.1, currentLevel.litWindow - 0.12) * 1_000_000_000)
-                try? await Task.sleep(nanoseconds: waitNanos)
+                let litWindow = max(0.1, currentLevel.litWindow - 0.12)
+                let moveCount = min(3, currentLevel.rawValue)
+                let segmentNanos = UInt64(litWindow / Double(moveCount + 1) * 1_000_000_000)
+
+                for moveIndex in 0...moveCount {
+                    try? await Task.sleep(nanoseconds: segmentNanos)
+                    if Task.isCancelled || gameOver { break }
+
+                    if moveIndex < moveCount {
+                        moveCardsForChallenge()
+                    }
+                }
             }
+        }
+    }
+
+    private func moveCardsForChallenge() {
+        guard cards.count > 1 else { return }
+
+        let currentOrder = cards.map(\.id)
+        var movedCards = cards.shuffled()
+
+        if movedCards.map(\.id) == currentOrder {
+            movedCards.append(movedCards.removeFirst())
+        }
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+            cards = movedCards
         }
     }
 

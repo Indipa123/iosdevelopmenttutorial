@@ -5,6 +5,8 @@ internal import Combine
 
 struct ContentView: View {
 
+    @Environment(\.horizontalSizeClass) private var hSize
+
     @State private var score = 0
     @State private var timeRemaining = 10
     @State private var gameOver = false
@@ -36,6 +38,10 @@ struct ContentView: View {
 
     @State private var floatingScores: [FloatingScore] = []
 
+    private var isRegularWidth: Bool { hSize == .regular }
+    private var contentMaxWidth: CGFloat { isRegularWidth ? 560 : 360 }
+    private var outerHorizontalPadding: CGFloat { isRegularWidth ? 28 : 16 }
+
     let gameTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     let colourTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
@@ -43,12 +49,21 @@ struct ContentView: View {
         ZStack {
             WallpaperBackground()
 
-            if gameOver {
-                gameOverView
-                    .transition(.scale(scale: 0.85).combined(with: .opacity))
-            } else {
-                gameView
-                    .transition(.opacity)
+            GeometryReader { proxy in
+                let contentWidth = max(0, min(proxy.size.width - outerHorizontalPadding * 2, contentMaxWidth))
+
+                Group {
+                    if gameOver {
+                        gameOverView
+                            .transition(.scale(scale: 0.85).combined(with: .opacity))
+                    } else {
+                        gameView
+                            .transition(.opacity)
+                    }
+                }
+                .frame(width: contentWidth)
+                .clipped()
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
             }
 
             if showConfetti {
@@ -106,15 +121,14 @@ struct ContentView: View {
                 )
                 .shadow(color: .cyan.opacity(0.7), radius: 12)
                 .tracking(2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
-            HStack {
+            HStack(spacing: 12) {
                 statCard(title: "SCORE", value: "\(score)", color: .yellow, scale: scoreBump)
-
-                Spacer()
 
                 statCard(title: "TIME", value: "\(timeRemaining)", color: timeRemaining <= 3 ? .red : .white, scale: timerPulseScale)
             }
-            .padding(.horizontal, 32)
 
             Text("COMBO  ×\(comboMultiplier)")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -130,6 +144,8 @@ struct ContentView: View {
                 )
                 .scaleEffect(comboBump)
                 .shadow(color: comboMultiplier >= 3 ? .orange.opacity(0.8) : .clear, radius: 12)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
                 .overlay(alignment: .trailing) {
                     if comboMultiplier >= 3 {
                         Text("🔥")
@@ -142,6 +158,8 @@ struct ContentView: View {
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundColor(.white.opacity(0.85))
                 .tracking(1.5)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
 
             tapButton
 
@@ -149,6 +167,8 @@ struct ContentView: View {
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
                 .tracking(1)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
         .padding()
     }
@@ -159,6 +179,8 @@ struct ContentView: View {
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundColor(.white.opacity(0.7))
                 .tracking(1.5)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             Text(value)
                 .font(.system(size: 38, weight: .heavy, design: .rounded))
@@ -166,7 +188,10 @@ struct ContentView: View {
                 .shadow(color: color.opacity(0.7), radius: 8)
                 .scaleEffect(scale)
                 .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
         .background(

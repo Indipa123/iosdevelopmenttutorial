@@ -4,6 +4,7 @@ internal import Combine
 struct HomeView: View {
     @AppStorage("highScore") private var tapFrenzyHighScore = 0
     @AppStorage("lightItUpHighScore") private var lightItUpHighScore = 0
+    @AppStorage("quizRushHighScore") private var quizRushHighScore = 0
 
     @Environment(\.horizontalSizeClass) private var hSize
     @Environment(\.verticalSizeClass) private var vSize
@@ -15,7 +16,7 @@ struct HomeView: View {
     private var isCompactHeight: Bool { vSize == .compact }
     private var useTwoColumnGames: Bool { isRegularWidth || isCompactHeight }
 
-    private var contentMaxWidth: CGFloat { isRegularWidth ? 860 : .infinity }
+    private var contentMaxWidth: CGFloat { isRegularWidth ? 860 : 360 }
     private var titleSize: CGFloat { isRegularWidth ? 78 : 50 }
     private var titleTracking: CGFloat { isRegularWidth ? 10 : 5 }
     private var taglineSize: CGFloat { isRegularWidth ? 16 : 13 }
@@ -39,6 +40,8 @@ struct HomeView: View {
             WallpaperBackground()
 
             GeometryReader { proxy in
+                let contentWidth = max(0, min(proxy.size.width - outerHorizontalPadding * 2, contentMaxWidth))
+
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: sectionSpacing) {
                         header
@@ -63,8 +66,9 @@ struct HomeView: View {
                             .padding(.top, 6)
                             .padding(.bottom, 18)
                     }
+                    .frame(width: contentWidth, alignment: .center)
+                    .clipped()
                     .padding(.horizontal, outerHorizontalPadding)
-                    .frame(maxWidth: contentMaxWidth, alignment: .center)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .frame(minHeight: proxy.size.height, alignment: .top)
                 }
@@ -112,7 +116,7 @@ struct HomeView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.4)
 
-            Text("Two games. One arena.")
+            Text("Three games. One arena.")
                 .font(.system(size: taglineSize, weight: .semibold, design: .rounded))
                 .foregroundColor(.white.opacity(0.7))
                 .tracking(1.5)
@@ -123,7 +127,11 @@ struct HomeView: View {
     }
 
     private var statsSummary: some View {
-        HStack(spacing: 10) {
+        let columns: [GridItem] = useTwoColumnGames
+            ? [GridItem(.flexible(minimum: 0), spacing: 10), GridItem(.flexible(minimum: 0), spacing: 10)]
+            : [GridItem(.flexible(minimum: 0))]
+
+        return LazyVGrid(columns: columns, spacing: 10) {
             SummaryStat(
                 label: "TAP FRENZY",
                 value: "\(tapFrenzyHighScore)",
@@ -137,14 +145,21 @@ struct HomeView: View {
                 icon: "square.grid.3x3.fill",
                 color: .blue
             )
+
+            SummaryStat(
+                label: "QUIZ RUSH",
+                value: "\(quizRushHighScore)",
+                icon: "questionmark.circle.fill",
+                color: .orange
+            )
         }
         .frame(maxWidth: .infinity)
     }
 
     private var gameCardsLayout: some View {
         let columns: [GridItem] = useTwoColumnGames
-            ? [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
-            : [GridItem(.flexible())]
+            ? [GridItem(.flexible(minimum: 0), spacing: 16), GridItem(.flexible(minimum: 0), spacing: 16)]
+            : [GridItem(.flexible(minimum: 0))]
 
         return LazyVGrid(columns: columns, spacing: 16) {
             NavigationLink {
@@ -175,6 +190,22 @@ struct HomeView: View {
                     highScore: lightItUpHighScore,
                     previewHeight: previewHeight,
                     preview: AnyView(LightItUpPreview())
+                )
+            }
+            .buttonStyle(ModeCardButtonStyle())
+
+            NavigationLink {
+                QuizRushView()
+            } label: {
+                GameFeatureCard(
+                    title: "QUIZ RUSH",
+                    tagline: "Live trivia challenge.",
+                    description: "10 questions. Streak bonuses.",
+                    accent: .orange,
+                    gradient: [.orange, .pink, .purple],
+                    highScore: quizRushHighScore,
+                    previewHeight: previewHeight,
+                    preview: AnyView(QuizRushPreview())
                 )
             }
             .buttonStyle(ModeCardButtonStyle())
