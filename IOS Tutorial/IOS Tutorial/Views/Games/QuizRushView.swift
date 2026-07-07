@@ -1,211 +1,4 @@
 import SwiftUI
-import Foundation
-internal import Combine
-
-// MARK: - API Model
-
-struct TriviaAPIResponse: Decodable {
-    let results: [TriviaQuestionDTO]
-}
-
-struct TriviaQuestionDTO: Decodable {
-    let question: String
-    let correctAnswer: String
-    let incorrectAnswers: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case question
-        case correctAnswer = "correct_answer"
-        case incorrectAnswers = "incorrect_answers"
-    }
-}
-
-struct QuizQuestion: Identifiable, Equatable {
-    let id = UUID()
-    let question: String
-    let correctAnswer: String
-    let answers: [String]
-}
-
-// MARK: - Network Service
-
-protocol TriviaQuestionServicing {
-    func fetchQuestions() async throws -> [QuizQuestion]
-}
-
-struct OpenTriviaService: TriviaQuestionServicing {
-    private let url = URL(string: "https://opentdb.com/api.php?amount=10&type=multiple")!
-
-    func fetchQuestions() async throws -> [QuizQuestion] {
-        let (data, response) = try await URLSession.shared.data(from: url)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw QuizRushError.badResponse
-        }
-
-        let decoded = try JSONDecoder().decode(TriviaAPIResponse.self, from: data)
-        guard !decoded.results.isEmpty else { throw QuizRushError.emptyQuestions }
-
-        return decoded.results.map { item in
-            let correctAnswer = item.correctAnswer.htmlDecoded
-            let incorrectAnswers = item.incorrectAnswers.map(\.htmlDecoded)
-            let answers = ([correctAnswer] + incorrectAnswers).shuffled()
-
-            return QuizQuestion(
-                question: item.question.htmlDecoded,
-                correctAnswer: correctAnswer,
-                answers: answers
-            )
-        }
-    }
-}
-
-enum QuizRushError: LocalizedError {
-    case badResponse
-    case emptyQuestions
-
-    var errorDescription: String? {
-        switch self {
-        case .badResponse:
-            return "Could not reach Open Trivia DB."
-        case .emptyQuestions:
-            return "No questions were returned."
-        }
-    }
-}
-
-// MARK: - ViewModel
-
-@MainActor
-final class QuizRushViewModel: ObservableObject {
-    enum ViewState: Equatable {
-        case idle
-        case loading
-        case loaded
-        case failed(String)
-        case finished
-    }
-
-    enum AnswerFeedback: Equatable {
-        case correct
-        case wrong
-    }
-
-    @Published private(set) var state: ViewState = .idle
-    @Published private(set) var questions: [QuizQuestion] = []
-    @Published private(set) var currentIndex = 0
-    @Published private(set) var score = 0
-    @Published private(set) var streak = 0
-    @Published private(set) var highScore: Int
-    @Published private(set) var selectedAnswer: String?
-    @Published private(set) var feedback: AnswerFeedback?
-    @Published private(set) var feedbackToken = UUID()
-
-    private let service: TriviaQuestionServicing
-    private let highScoreKey = "quizRushHighScore"
-    private var isAnswerLocked = false
-
-    var currentQuestion: QuizQuestion? {
-        guard questions.indices.contains(currentIndex) else { return nil }
-        return questions[currentIndex]
-    }
-
-    var progressText: String {
-        "\(min(currentIndex + 1, questions.count)) of \(questions.count)"
-    }
-
-    convenience init() {
-        self.init(service: OpenTriviaService())
-    }
-
-    init(service: TriviaQuestionServicing) {
-        self.service = service
-        self.highScore = UserDefaults.standard.integer(forKey: highScoreKey)
-    }
-
-    func loadIfNeeded() async {
-        guard state == .idle else { return }
-        await load()
-    }
-
-    func load() async {
-        state = .loading
-        resetRound(keepingQuestions: false)
-
-        do {
-            questions = try await service.fetchQuestions()
-            state = .loaded
-        } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? "Something went wrong. Please try again."
-            state = .failed(message)
-        }
-    }
-
-    func retry() async {
-        await load()
-    }
-
-    func restart() async {
-        await load()
-    }
-
-    func submitAnswer(_ answer: String) {
-        guard !isAnswerLocked, state == .loaded, let question = currentQuestion else { return }
-
-        isAnswerLocked = true
-        selectedAnswer = answer
-
-        if answer == question.correctAnswer {
-            streak += 1
-            score += 10 + max(0, streak - 1) * 3
-            feedback = .correct
-        } else {
-            streak = 0
-            score = max(0, score - 2)
-            feedback = .wrong
-        }
-
-        feedbackToken = UUID()
-
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 550_000_000)
-            advanceAfterFeedback()
-        }
-    }
-
-    private func advanceAfterFeedback() {
-        selectedAnswer = nil
-        feedback = nil
-        isAnswerLocked = false
-
-        if currentIndex + 1 >= questions.count {
-            finishRound()
-        } else {
-            currentIndex += 1
-        }
-    }
-
-    private func finishRound() {
-        if score > highScore {
-            highScore = score
-            UserDefaults.standard.set(score, forKey: highScoreKey)
-        }
-        state = .finished
-    }
-
-    private func resetRound(keepingQuestions: Bool) {
-        if !keepingQuestions { questions = [] }
-        currentIndex = 0
-        score = 0
-        streak = 0
-        selectedAnswer = nil
-        feedback = nil
-        isAnswerLocked = false
-    }
-}
-
-// MARK: - Quiz Rush View
 
 struct QuizRushView: View {
     @StateObject private var viewModel = QuizRushViewModel()
@@ -359,9 +152,9 @@ struct QuizRushView: View {
                 .minimumScaleFactor(0.7)
 
             HStack(spacing: 10) {
-                QuizStatPill(title: "QUESTION", value: viewModel.progressText, color: .orange)
-                QuizStatPill(title: "SCORE", value: "\(viewModel.score)", color: .yellow)
-                QuizStatPill(title: "STREAK", value: "\(viewModel.streak)", color: .green)
+                ScoreBadge(title: "QUESTION", value: viewModel.progressText, color: .orange)
+                ScoreBadge(title: "SCORE", value: "\(viewModel.score)", color: .yellow)
+                ScoreBadge(title: "STREAK", value: "\(viewModel.streak)", color: .green)
             }
         }
     }
@@ -422,8 +215,8 @@ struct QuizRushView: View {
                 .shadow(color: .yellow.opacity(0.75), radius: 18)
 
             HStack(spacing: 10) {
-                QuizStatPill(title: "BEST", value: "\(viewModel.highScore)", color: .orange)
-                QuizStatPill(title: "FINAL STREAK", value: "\(viewModel.streak)", color: .green)
+                ScoreBadge(title: "BEST", value: "\(viewModel.highScore)", color: .orange)
+                ScoreBadge(title: "FINAL STREAK", value: "\(viewModel.streak)", color: .green)
             }
 
             Button {
@@ -488,39 +281,6 @@ struct QuizRushView: View {
     }
 }
 
-struct QuizStatPill: View {
-    let title: String
-    let value: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 3) {
-            Text(title)
-                .font(.system(size: 9, weight: .heavy, design: .rounded))
-                .foregroundColor(.white.opacity(0.58))
-                .tracking(1.2)
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-
-            Text(value)
-                .font(.system(size: 16, weight: .heavy, design: .rounded))
-                .foregroundColor(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(color.opacity(0.35), lineWidth: 1)
-                )
-        )
-    }
-}
-
 // MARK: - Home Preview
 
 struct QuizRushPreview: View {
@@ -545,51 +305,6 @@ struct QuizRushPreview: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-    }
-}
-
-// MARK: - HTML Decoding
-
-private extension String {
-    var htmlDecoded: String {
-        self
-            .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&#039;", with: "'")
-            .replacingOccurrences(of: "&apos;", with: "'")
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
-            .replacingOccurrences(of: "&eacute;", with: "e")
-            .replacingOccurrences(of: "&uuml;", with: "u")
-            .replacingOccurrences(of: "&rsquo;", with: "'")
-            .replacingOccurrences(of: "&ldquo;", with: "\"")
-            .replacingOccurrences(of: "&rdquo;", with: "\"")
-            .replacingNumericHTMLEntities()
-    }
-
-    private func replacingNumericHTMLEntities() -> String {
-        let pattern = #"&#(x?[0-9A-Fa-f]+);"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return self }
-
-        var result = self
-        let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
-
-        for match in matches {
-            guard match.numberOfRanges == 2,
-                  let fullRange = Range(match.range(at: 0), in: result),
-                  let valueRange = Range(match.range(at: 1), in: result) else { continue }
-
-            let rawValue = String(result[valueRange])
-            let radix = rawValue.hasPrefix("x") ? 16 : 10
-            let digits = rawValue.hasPrefix("x") ? String(rawValue.dropFirst()) : rawValue
-
-            if let scalarValue = UInt32(digits, radix: radix),
-               let scalar = UnicodeScalar(scalarValue) {
-                result.replaceSubrange(fullRange, with: String(Character(scalar)))
-            }
-        }
-
-        return result
     }
 }
 

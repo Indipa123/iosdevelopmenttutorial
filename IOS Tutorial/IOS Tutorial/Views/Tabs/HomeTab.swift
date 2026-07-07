@@ -1,7 +1,7 @@
 import SwiftUI
 internal import Combine
 
-struct HomeView: View {
+struct HomeTab: View {
     @AppStorage("highScore") private var tapFrenzyHighScore = 0
     @AppStorage("lightItUpHighScore") private var lightItUpHighScore = 0
     @AppStorage("quizRushHighScore") private var quizRushHighScore = 0
@@ -163,7 +163,7 @@ struct HomeView: View {
 
         return LazyVGrid(columns: columns, spacing: 16) {
             NavigationLink {
-                ContentView()
+                TapFrenzyView()
             } label: {
                 GameFeatureCard(
                     title: "TAP FRENZY",
@@ -554,9 +554,9 @@ struct ModeCardButtonStyle: ButtonStyle {
 }
 
 #Preview("iPhone") {
-    HomeView()
+    HomeTab()
 }
 
 #Preview("iPad", traits: .landscapeLeft) {
-    HomeView()
+    HomeTab()
 }

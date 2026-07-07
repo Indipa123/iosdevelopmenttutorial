@@ -3,20 +3,11 @@ import AudioToolbox
 import UIKit
 internal import Combine
 
-struct ContentView: View {
+struct TapFrenzyView: View {
+
+    @StateObject private var viewModel = TapFrenzyViewModel()
 
     @Environment(\.horizontalSizeClass) private var hSize
-
-    @State private var score = 0
-    @State private var timeRemaining = 10
-    @State private var gameOver = false
-
-    @State private var comboMultiplier = 1
-    @State private var lastTapTime: Date?
-
-    @State private var isBonusColour = true
-
-    @AppStorage("highScore") private var highScore = 0
 
     @State private var showConfetti = false
     @State private var celebrateScale: CGFloat = 0.1
@@ -53,7 +44,7 @@ struct ContentView: View {
                 let contentWidth = max(0, min(proxy.size.width - outerHorizontalPadding * 2, contentMaxWidth))
 
                 Group {
-                    if gameOver {
+                    if viewModel.gameOver {
                         gameOverView
                             .transition(.scale(scale: 0.85).combined(with: .opacity))
                     } else {
@@ -88,25 +79,11 @@ struct ContentView: View {
             startContinuousAnimations()
         }
         .onReceive(gameTimer) { _ in
-            if !gameOver {
-                if timeRemaining > 0 {
-                    timeRemaining -= 1
-                    if timeRemaining <= 3 && timeRemaining > 0 {
-                        AudioServicesPlaySystemSound(1103)
-                        pulseTimerWarning()
-                    }
-                }
-
-                if timeRemaining == 0 {
-                    endGame()
-                }
-            }
+            handleTick()
         }
         .onReceive(colourTimer) { _ in
-            if !gameOver {
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    isBonusColour.toggle()
-                }
+            withAnimation(.easeInOut(duration: 0.4)) {
+                viewModel.toggleBonusColour()
             }
         }
     }
@@ -125,12 +102,12 @@ struct ContentView: View {
                 .minimumScaleFactor(0.7)
 
             HStack(spacing: 12) {
-                statCard(title: "SCORE", value: "\(score)", color: .yellow, scale: scoreBump)
+                statCard(title: "SCORE", value: "\(viewModel.score)", color: .yellow, scale: scoreBump)
 
-                statCard(title: "TIME", value: "\(timeRemaining)", color: timeRemaining <= 3 ? .red : .white, scale: timerPulseScale)
+                statCard(title: "TIME", value: "\(viewModel.timeRemaining)", color: viewModel.timeRemaining <= 3 ? .red : .white, scale: timerPulseScale)
             }
 
-            Text("COMBO  ×\(comboMultiplier)")
+            Text("COMBO  ×\(viewModel.comboMultiplier)")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
                 .padding(.horizontal, 18)
@@ -139,22 +116,22 @@ struct ContentView: View {
                     Capsule()
                         .fill(.ultraThinMaterial)
                         .overlay(
-                            Capsule().stroke(comboMultiplier >= 3 ? Color.orange : Color.white.opacity(0.3), lineWidth: 2)
+                            Capsule().stroke(viewModel.comboMultiplier >= 3 ? Color.orange : Color.white.opacity(0.3), lineWidth: 2)
                         )
                 )
                 .scaleEffect(comboBump)
-                .shadow(color: comboMultiplier >= 3 ? .orange.opacity(0.8) : .clear, radius: 12)
+                .shadow(color: viewModel.comboMultiplier >= 3 ? .orange.opacity(0.8) : .clear, radius: 12)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .overlay(alignment: .trailing) {
-                    if comboMultiplier >= 3 {
+                    if viewModel.comboMultiplier >= 3 {
                         Text("🔥")
                             .font(.title2)
                             .offset(x: 26)
                     }
                 }
 
-            Text(isBonusColour ? "GREEN = BONUS" : "GREY = PENALTY")
+            Text(viewModel.isBonusColour ? "GREEN = BONUS" : "GREY = PENALTY")
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundColor(.white.opacity(0.85))
                 .tracking(1.5)
@@ -163,7 +140,7 @@ struct ContentView: View {
 
             tapButton
 
-            Text("HIGH SCORE: \(highScore)")
+            Text("HIGH SCORE: \(viewModel.highScore)")
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
                 .tracking(1)
@@ -209,7 +186,7 @@ struct ContentView: View {
             ForEach(0..<3) { i in
                 Circle()
                     .stroke(
-                        isBonusColour ? Color.green.opacity(0.5) : Color.gray.opacity(0.4),
+                        viewModel.isBonusColour ? Color.green.opacity(0.5) : Color.gray.opacity(0.4),
                         lineWidth: 3
                     )
                     .frame(width: 220, height: 220)
@@ -220,7 +197,7 @@ struct ContentView: View {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: isBonusColour
+                        colors: viewModel.isBonusColour
                             ? [.green, .green.opacity(0.7)]
                             : [.gray, .gray.opacity(0.6)],
                         center: .center,
@@ -229,7 +206,7 @@ struct ContentView: View {
                     )
                 )
                 .frame(width: 220, height: 220)
-                .shadow(color: isBonusColour ? .green.opacity(0.9) : .gray.opacity(0.6), radius: 30)
+                .shadow(color: viewModel.isBonusColour ? .green.opacity(0.9) : .gray.opacity(0.6), radius: 30)
                 .scaleEffect(auraPulse)
 
             Button {
@@ -273,7 +250,7 @@ struct ContentView: View {
                 .shadow(color: .yellow.opacity(0.8), radius: 18)
                 .contentTransition(.numericText())
 
-            if score == highScore && score > 0 {
+            if viewModel.isNewHighScore {
                 VStack(spacing: 12) {
                     Text("🏆")
                         .font(.system(size: 84))
@@ -292,7 +269,7 @@ struct ContentView: View {
                 }
             }
 
-            Text("HIGH SCORE: \(highScore)")
+            Text("HIGH SCORE: \(viewModel.highScore)")
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundColor(.white)
                 .tracking(1)
@@ -327,27 +304,28 @@ struct ContentView: View {
         }
     }
 
-    func tapButtonPressed() {
-        let currentTime = Date()
+    func handleTick() {
+        switch viewModel.tick() {
+        case .running:
+            break
 
-        if let lastTap = lastTapTime {
-            let difference = currentTime.timeIntervalSince(lastTap)
+        case .warning:
+            AudioServicesPlaySystemSound(1103)
+            pulseTimerWarning()
 
-            if difference <= 0.5 {
-                comboMultiplier += 1
+        case .ended(let isNewHighScore):
+            if isNewHighScore {
+                triggerWinCelebration()
             } else {
-                comboMultiplier = 1
+                playLosingSound()
             }
-        } else {
-            comboMultiplier = 1
+            animateFinalScoreCountUp()
         }
+    }
 
-        lastTapTime = currentTime
-
-        if isBonusColour {
-            let earned = comboMultiplier * 2
-            score += earned
-
+    func tapButtonPressed() {
+        switch viewModel.registerTap() {
+        case .bonus(let earned, let comboMilestone):
             AudioServicesPlaySystemSound(1104)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
@@ -362,14 +340,12 @@ struct ContentView: View {
                 tapScale = 1.0
             }
 
-            if comboMultiplier == 5 || comboMultiplier == 10 {
+            if comboMilestone {
                 AudioServicesPlaySystemSound(1025)
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
-        } else {
-            score -= 1
-            if score < 0 { score = 0 }
 
+        case .penalty:
             AudioServicesPlaySystemSound(1053)
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
 
@@ -433,22 +409,9 @@ struct ContentView: View {
         }
     }
 
-    func endGame() {
-        gameOver = true
-
-        if score > highScore {
-            highScore = score
-            triggerWinCelebration()
-        } else {
-            playLosingSound()
-        }
-
-        animateFinalScoreCountUp()
-    }
-
     func animateFinalScoreCountUp() {
         displayedFinalScore = 0
-        let target = score
+        let target = viewModel.score
         guard target > 0 else { return }
         let steps = min(target, 30)
         let interval = 0.9 / Double(steps)
@@ -495,12 +458,7 @@ struct ContentView: View {
 
     func restartGame() {
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-            score = 0
-            timeRemaining = 10
-            gameOver = false
-            comboMultiplier = 1
-            lastTapTime = nil
-            isBonusColour = true
+            viewModel.restart()
             showConfetti = false
             celebrateScale = 0.1
             trophyRotation = 0
@@ -541,7 +499,7 @@ struct FloatingScoreText: View {
 
 #Preview {
     NavigationStack {
-        ContentView()
+        TapFrenzyView()
     }
     .preferredColorScheme(.dark)
 }

@@ -2,82 +2,13 @@ import SwiftUI
 import AudioToolbox
 import UIKit
 
-enum LightLevel: Int, CaseIterable {
-    case L1 = 1, L2, L3, L4
-
-    var cardCount: Int {
-        switch self {
-        case .L1: return 3
-        case .L2: return 4
-        case .L3: return 6
-        case .L4: return 9
-        }
-    }
-
-    var columns: Int {
-        switch self {
-        case .L1: return 3
-        case .L2: return 2
-        case .L3: return 3
-        case .L4: return 3
-        }
-    }
-
-    var litWindow: TimeInterval {
-        switch self {
-        case .L1: return 1.5
-        case .L2: return 1.2
-        case .L3: return 1.0
-        case .L4: return 0.8
-        }
-    }
-
-    var simultaneousLit: Int {
-        self == .L4 ? 2 : 1
-    }
-
-    var glowColor: Color {
-        switch self {
-        case .L1: return Color(red: 0.30, green: 1.00, blue: 0.45)
-        case .L2: return Color(red: 0.30, green: 0.65, blue: 1.00)
-        case .L3: return Color(red: 1.00, green: 0.80, blue: 0.20)
-        case .L4: return Color(red: 1.00, green: 0.30, blue: 0.35)
-        }
-    }
-
-    var displayName: String { "L\(rawValue)" }
-
-    var pointsPerHit: Int { rawValue * 10 }
-
-    static func forProgress(_ progress: Double) -> LightLevel {
-        switch progress {
-        case ..<0.25: return .L1
-        case ..<0.50: return .L2
-        case ..<0.75: return .L3
-        default: return .L4
-        }
-    }
-}
-
-struct LightCard: Identifiable {
-    let id = UUID()
-    var isLit: Bool = false
-    var bumpScale: CGFloat = 1.0
-}
-
 struct LightItUpView: View {
-    @AppStorage("lightItUpHighScore") private var highScore = 0
+    @StateObject private var viewModel = LightItUpViewModel()
+
     @AppStorage("lightItUpRoundLength") private var roundLength = 60
 
     @Environment(\.horizontalSizeClass) private var hSize
 
-    @State private var cards: [LightCard] = []
-    @State private var score = 0
-    @State private var lives = 3
-    @State private var timeRemaining: Int = 60
-    @State private var currentLevel: LightLevel = .L1
-    @State private var gameOver = false
-    @State private var hasStarted = false
     @State private var showSettings = false
 
     @State private var showLevelUpFlash = false
@@ -90,11 +21,7 @@ struct LightItUpView: View {
     @State private var scoreBump: CGFloat = 1.0
     @State private var heartScale: [CGFloat] = [1, 1, 1]
     @State private var heartShake: [CGFloat] = [0, 0, 0]
-    @State private var timeBarShakeOpacity: Double = 0
     @State private var levelFlashScale: CGFloat = 0.5
-
-    @State private var gameTask: Task<Void, Never>?
-    @State private var countdownTask: Task<Void, Never>?
 
     private var isRegularWidth: Bool { hSize == .regular }
     private var contentMaxWidth: CGFloat { isRegularWidth ? 640 : 360 }
@@ -145,9 +72,9 @@ struct LightItUpView: View {
                     .transition(.opacity)
             }
 
-            if !hasStarted && !gameOver {
+            if !viewModel.hasStarted && !viewModel.gameOver {
                 startOverlay
-            } else if gameOver {
+            } else if viewModel.gameOver {
                 gameOverOverlay
                     .transition(.scale(scale: 0.85).combined(with: .opacity))
             }
@@ -167,8 +94,8 @@ struct LightItUpView: View {
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
                 }
-                .disabled(hasStarted && !gameOver)
-                .opacity(hasStarted && !gameOver ? 0.3 : 1)
+                .disabled(viewModel.hasStarted && !viewModel.gameOver)
+                .opacity(viewModel.hasStarted && !viewModel.gameOver ? 0.3 : 1)
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -177,11 +104,11 @@ struct LightItUpView: View {
                 .presentationDragIndicator(.visible)
         }
         .onAppear {
+            viewModel.onEvent = handleEvent
             resetGame()
         }
         .onDisappear {
-            gameTask?.cancel()
-            countdownTask?.cancel()
+            viewModel.stop()
         }
     }
 
@@ -194,8 +121,8 @@ struct LightItUpView: View {
         )
 
         return LazyVGrid(columns: columns, spacing: 8) {
-            stat(title: "SCORE", value: "\(score)", color: .yellow, scale: scoreBump)
-            stat(title: "TIME", value: "\(timeRemaining)", color: timeRemaining <= 5 ? .red : .white)
+            stat(title: "SCORE", value: "\(viewModel.score)", color: .yellow, scale: scoreBump)
+            stat(title: "TIME", value: "\(viewModel.timeRemaining)", color: viewModel.timeRemaining <= 5 ? .red : .white)
             livesView
         }
     }
@@ -239,10 +166,10 @@ struct LightItUpView: View {
                 .minimumScaleFactor(0.7)
             HStack(spacing: 4) {
                 ForEach(0..<3, id: \.self) { i in
-                    Image(systemName: i < lives ? "heart.fill" : "heart")
+                    Image(systemName: i < viewModel.lives ? "heart.fill" : "heart")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(i < lives ? .red : .white.opacity(0.3))
-                        .shadow(color: i < lives ? .red.opacity(0.6) : .clear, radius: 6)
+                        .foregroundColor(i < viewModel.lives ? .red : .white.opacity(0.3))
+                        .shadow(color: i < viewModel.lives ? .red.opacity(0.6) : .clear, radius: 6)
                         .scaleEffect(heartScale[i])
                         .offset(x: heartShake[i])
                 }
@@ -266,11 +193,11 @@ struct LightItUpView: View {
     private var levelBadge: some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(currentLevel.glowColor)
+                .fill(viewModel.currentLevel.glowColor)
                 .frame(width: 10, height: 10)
-                .shadow(color: currentLevel.glowColor, radius: 6)
+                .shadow(color: viewModel.currentLevel.glowColor, radius: 6)
 
-            Text("LEVEL \(currentLevel.rawValue)")
+            Text("LEVEL \(viewModel.currentLevel.number)")
                 .font(.system(size: 14, weight: .heavy, design: .rounded))
                 .foregroundColor(.white)
                 .tracking(2.5)
@@ -278,7 +205,7 @@ struct LightItUpView: View {
             Text("·")
                 .foregroundColor(.white.opacity(0.5))
 
-            Text("\(String(format: "%.1f", currentLevel.litWindow))s")
+            Text("\(String(format: "%.1f", viewModel.currentLevel.litWindow))s")
                 .font(.system(size: 12, weight: .bold, design: .rounded))
                 .foregroundColor(.white.opacity(0.75))
         }
@@ -288,17 +215,17 @@ struct LightItUpView: View {
             Capsule()
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    Capsule().stroke(currentLevel.glowColor.opacity(0.65), lineWidth: 1.5)
+                    Capsule().stroke(viewModel.currentLevel.glowColor.opacity(0.65), lineWidth: 1.5)
                 )
         )
-        .shadow(color: currentLevel.glowColor.opacity(0.5), radius: 12)
+        .shadow(color: viewModel.currentLevel.glowColor.opacity(0.5), radius: 12)
     }
 
     // MARK: - Time Bar
 
     private var timeBar: some View {
         GeometryReader { geo in
-            let progress = max(0, min(1, Double(timeRemaining) / Double(roundLength)))
+            let progress = max(0, min(1, Double(viewModel.timeRemaining) / Double(roundLength)))
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(Color.white.opacity(0.08))
@@ -307,13 +234,13 @@ struct LightItUpView: View {
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: timeRemaining <= 5 ? [.red, .orange] : [.cyan, .blue, .purple],
+                            colors: viewModel.timeRemaining <= 5 ? [.red, .orange] : [.cyan, .blue, .purple],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .frame(width: geo.size.width * progress, height: 6)
-                    .shadow(color: (timeRemaining <= 5 ? Color.red : Color.cyan).opacity(0.7), radius: 6)
+                    .shadow(color: (viewModel.timeRemaining <= 5 ? Color.red : Color.cyan).opacity(0.7), radius: 6)
                     .animation(.easeInOut(duration: 0.4), value: progress)
             }
         }
@@ -325,21 +252,21 @@ struct LightItUpView: View {
     private var cardGrid: some View {
         let columns = Array(
             repeating: GridItem(.flexible(minimum: 0), spacing: 14),
-            count: currentLevel.columns
+            count: viewModel.currentLevel.columns
         )
 
         return LazyVGrid(columns: columns, spacing: 14) {
-            ForEach(cards) { card in
+            ForEach(viewModel.cards) { card in
                 LightCardView(
                     card: card,
-                    glowColor: currentLevel.glowColor
+                    glowColor: viewModel.currentLevel.glowColor
                 ) {
-                    tapCard(card)
+                    viewModel.tapCard(card)
                 }
             }
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.75), value: currentLevel)
-        .animation(.spring(response: 0.35, dampingFraction: 0.72), value: cards.map(\.id))
+        .animation(.spring(response: 0.45, dampingFraction: 0.75), value: viewModel.currentLevel)
+        .animation(.spring(response: 0.35, dampingFraction: 0.72), value: viewModel.cards.map(\.id))
     }
 
     // MARK: - Start Overlay
@@ -365,7 +292,7 @@ struct LightItUpView: View {
                     .shadow(color: .cyan.opacity(0.7), radius: 12)
                     .tracking(3)
 
-                Text("Tap lit cards before they fade.\nCards move. Window shrinks.")
+                Text("Tap lit cards before they fade.\nCards move. Later levels require order.")
                     .font(.system(size: 15, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.85))
                     .multilineTextAlignment(.center)
@@ -387,10 +314,10 @@ struct LightItUpView: View {
                         .shadow(color: .blue.opacity(0.7), radius: 14)
                 }
 
-                if highScore > 0 {
+                if viewModel.highScore > 0 {
                     HStack(spacing: 6) {
                         Image(systemName: "trophy.fill")
-                        Text("HIGH SCORE  \(highScore)")
+                        Text("HIGH SCORE  \(viewModel.highScore)")
                     }
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(.yellow)
@@ -419,7 +346,7 @@ struct LightItUpView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 18) {
-                Text(lives == 0 ? "OUT OF LIVES" : "TIME'S UP")
+                Text(viewModel.lives == 0 ? "OUT OF LIVES" : "TIME'S UP")
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(colors: [.white, .red.opacity(0.8)], startPoint: .top, endPoint: .bottom)
@@ -438,7 +365,7 @@ struct LightItUpView: View {
                     .shadow(color: .yellow.opacity(0.8), radius: 18)
                     .contentTransition(.numericText())
 
-                if score == highScore && score > 0 {
+                if viewModel.isNewHighScore {
                     VStack(spacing: 10) {
                         Text("🏆")
                             .font(.system(size: 70))
@@ -457,7 +384,7 @@ struct LightItUpView: View {
                     }
                 }
 
-                Text("HIGH SCORE  \(highScore)")
+                Text("HIGH SCORE  \(viewModel.highScore)")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
                     .tracking(1.5)
@@ -497,7 +424,7 @@ struct LightItUpView: View {
 
     private var levelUpOverlay: some View {
         ZStack {
-            currentLevel.glowColor.opacity(0.35)
+            viewModel.currentLevel.glowColor.opacity(0.35)
                 .ignoresSafeArea()
                 .blendMode(.screen)
 
@@ -505,10 +432,10 @@ struct LightItUpView: View {
                 Text(levelUpText)
                     .font(.system(size: 80, weight: .black, design: .rounded))
                     .foregroundColor(.white)
-                    .shadow(color: currentLevel.glowColor, radius: 28)
+                    .shadow(color: viewModel.currentLevel.glowColor, radius: 28)
                     .tracking(6)
 
-                Text(levelDescription(for: currentLevel))
+                Text(levelDescription(for: viewModel.currentLevel))
                     .font(.system(size: 14, weight: .heavy, design: .rounded))
                     .foregroundColor(.white.opacity(0.9))
                     .tracking(3)
@@ -518,161 +445,69 @@ struct LightItUpView: View {
     }
 
     private func levelDescription(for level: LightLevel) -> String {
-        switch level {
-        case .L1: return "3 CARDS  ·  MOVING"
-        case .L2: return "4 CARDS  ·  FASTER MOVES"
-        case .L3: return "6 CARDS  ·  QUICK WINDOW"
-        case .L4: return "9 CARDS  ·  ×2 LIT"
-        }
+        level.ruleSummary.uppercased()
     }
 
     // MARK: - Game Lifecycle
 
     private func resetGame() {
-        gameTask?.cancel()
-        countdownTask?.cancel()
-        gameTask = nil
-        countdownTask = nil
+        viewModel.resetGame(roundLength: roundLength)
 
-        score = 0
-        lives = 3
-        timeRemaining = roundLength
-        currentLevel = .L1
-        gameOver = false
-        hasStarted = false
         showConfetti = false
         celebrateScale = 0.1
         trophyRotation = 0
         displayedFinalScore = 0
         heartScale = [1, 1, 1]
         heartShake = [0, 0, 0]
-
-        cards = (0..<LightLevel.L1.cardCount).map { _ in LightCard() }
     }
 
     private func startGame() {
-        guard !hasStarted else { return }
-        hasStarted = true
-
         AudioServicesPlaySystemSound(1057)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
-        startCountdown()
-        startGameLoop()
+        viewModel.startGame(roundLength: roundLength)
     }
 
-    private func startCountdown() {
-        countdownTask = Task { @MainActor in
-            while !Task.isCancelled && !gameOver && timeRemaining > 0 {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                if Task.isCancelled || gameOver { break }
-                timeRemaining -= 1
-                if timeRemaining <= 5 && timeRemaining > 0 {
-                    AudioServicesPlaySystemSound(1103)
-                }
-                if timeRemaining == 0 {
-                    endGame()
-                }
+    // MARK: - Game Events
+
+    private func handleEvent(_ event: LightItUpViewModel.GameEvent) {
+        switch event {
+        case .cardsLit:
+            AudioServicesPlaySystemSound(1306)
+
+        case .correctTap:
+            AudioServicesPlaySystemSound(1104)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            bumpScore()
+
+        case .wrongTap:
+            AudioServicesPlaySystemSound(1053)
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            flashPenalty()
+
+        case .lifeLost(let heartIndex):
+            animateHeartLoss(at: heartIndex)
+
+        case .levelUp(let level):
+            triggerLevelUpFlash(level)
+
+        case .timeWarning:
+            AudioServicesPlaySystemSound(1103)
+
+        case .gameEnded(let isNewHighScore):
+            if isNewHighScore {
+                triggerWinCelebration()
+            } else {
+                playLosingSound()
             }
+            animateFinalScoreCountUp()
         }
     }
 
-    private func startGameLoop() {
-        gameTask = Task { @MainActor in
-            let totalRound = TimeInterval(roundLength)
-            let startDate = Date()
-            var firstCycle = true
-
-            while !Task.isCancelled && !gameOver {
-                let elapsed = Date().timeIntervalSince(startDate)
-                let progress = elapsed / totalRound
-                let newLevel = LightLevel.forProgress(progress)
-
-                if newLevel != currentLevel {
-                    transitionToLevel(newLevel)
-                    try? await Task.sleep(nanoseconds: 600_000_000)
-                    if Task.isCancelled || gameOver { continue }
-                }
-
-                if !firstCycle {
-                    let missedCount = cards.filter { $0.isLit }.count
-                    if missedCount > 0 {
-                        for _ in 0..<missedCount {
-                            loseLife()
-                        }
-                        withAnimation(.easeOut(duration: 0.18)) {
-                            for i in cards.indices where cards[i].isLit {
-                                cards[i].isLit = false
-                            }
-                        }
-                    }
-                }
-                firstCycle = false
-
-                if gameOver { break }
-
-                try? await Task.sleep(nanoseconds: 120_000_000)
-                if Task.isCancelled || gameOver { continue }
-
-                let toLight = currentLevel.simultaneousLit
-                let dimIndices = cards.indices.filter { !cards[$0].isLit }.shuffled()
-                for index in dimIndices.prefix(toLight) {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) {
-                        cards[index].isLit = true
-                    }
-                }
-                AudioServicesPlaySystemSound(1306)
-
-                let litWindow = max(0.1, currentLevel.litWindow - 0.12)
-                let moveCount = min(3, currentLevel.rawValue)
-                let segmentNanos = UInt64(litWindow / Double(moveCount + 1) * 1_000_000_000)
-
-                for moveIndex in 0...moveCount {
-                    try? await Task.sleep(nanoseconds: segmentNanos)
-                    if Task.isCancelled || gameOver { break }
-
-                    if moveIndex < moveCount {
-                        moveCardsForChallenge()
-                    }
-                }
-            }
-        }
-    }
-
-    private func moveCardsForChallenge() {
-        guard cards.count > 1 else { return }
-
-        let currentOrder = cards.map(\.id)
-        var movedCards = cards.shuffled()
-
-        if movedCards.map(\.id) == currentOrder {
-            movedCards.append(movedCards.removeFirst())
-        }
-
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
-            cards = movedCards
-        }
-    }
-
-    private func transitionToLevel(_ newLevel: LightLevel) {
-        let previousCount = currentLevel.cardCount
-        currentLevel = newLevel
-
-        if previousCount != newLevel.cardCount {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                cards = (0..<newLevel.cardCount).map { _ in LightCard() }
-            }
-        } else {
-            withAnimation(.easeOut(duration: 0.25)) {
-                for i in cards.indices { cards[i].isLit = false }
-            }
-        }
-
-        triggerLevelUpFlash(newLevel)
-    }
+    // MARK: - Effects
 
     private func triggerLevelUpFlash(_ level: LightLevel) {
-        levelUpText = "LEVEL \(level.rawValue)"
+        levelUpText = "LEVEL \(level.number)"
         AudioServicesPlaySystemSound(1025)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
 
@@ -690,62 +525,18 @@ struct LightItUpView: View {
         }
     }
 
-    // MARK: - Tap Handling
+    private func animateHeartLoss(at heartIndex: Int) {
+        guard heartIndex >= 0 && heartIndex < heartScale.count else { return }
 
-    private func tapCard(_ card: LightCard) {
-        guard hasStarted, !gameOver else { return }
-        guard let index = cards.firstIndex(where: { $0.id == card.id }) else { return }
-
-        if cards[index].isLit {
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.45)) {
-                cards[index].isLit = false
-                cards[index].bumpScale = 1.25
-            }
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.6).delay(0.12)) {
-                cards[index].bumpScale = 1.0
-            }
-
-            score += currentLevel.pointsPerHit
-            AudioServicesPlaySystemSound(1104)
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            bumpScore()
-        } else {
-            loseLife()
-            AudioServicesPlaySystemSound(1053)
-            UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            flashPenalty()
-
-            withAnimation(.linear(duration: 0.05).repeatCount(4, autoreverses: true)) {
-                cards[index].bumpScale = 0.88
-            }
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6).delay(0.2)) {
-                cards[index].bumpScale = 1.0
-            }
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.35)) {
+            heartScale[heartIndex] = 1.6
         }
-    }
-
-    // MARK: - Effects
-
-    private func loseLife() {
-        guard lives > 0 else { return }
-        lives -= 1
-        let heartIndex = lives
-
-        if heartIndex >= 0 && heartIndex < heartScale.count {
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.35)) {
-                heartScale[heartIndex] = 1.6
-            }
-            withAnimation(.linear(duration: 0.05).repeatCount(4, autoreverses: true)) {
-                heartShake[heartIndex] = 8
-            }
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.55).delay(0.18)) {
-                heartScale[heartIndex] = 1.0
-                heartShake[heartIndex] = 0
-            }
+        withAnimation(.linear(duration: 0.05).repeatCount(4, autoreverses: true)) {
+            heartShake[heartIndex] = 8
         }
-
-        if lives == 0 {
-            endGame()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.55).delay(0.18)) {
+            heartScale[heartIndex] = 1.0
+            heartShake[heartIndex] = 0
         }
     }
 
@@ -767,25 +558,9 @@ struct LightItUpView: View {
         }
     }
 
-    private func endGame() {
-        guard !gameOver else { return }
-        gameOver = true
-        gameTask?.cancel()
-        countdownTask?.cancel()
-
-        if score > highScore {
-            highScore = score
-            triggerWinCelebration()
-        } else {
-            playLosingSound()
-        }
-
-        animateFinalScoreCountUp()
-    }
-
     private func animateFinalScoreCountUp() {
         displayedFinalScore = 0
-        let target = score
+        let target = viewModel.score
         guard target > 0 else { return }
         let steps = min(target, 30)
         let interval = 0.9 / Double(steps)
@@ -866,6 +641,13 @@ struct LightCardView: View {
                         .fill(Color.white.opacity(0.18))
                         .padding(8)
                         .blur(radius: 4)
+
+                    if let targetOrder = card.targetOrder {
+                        Text("\(targetOrder)")
+                            .font(.system(size: 28, weight: .black, design: .rounded))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.45), radius: 5)
+                    }
                 }
             }
             .aspectRatio(1, contentMode: .fit)
