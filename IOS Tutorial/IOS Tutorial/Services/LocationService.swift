@@ -15,10 +15,39 @@ final class LocationService: NSObject, ObservableObject {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        authorizationStatus = manager.authorizationStatus
     }
 
     func requestPermission() {
-        manager.requestWhenInUseAuthorization()
+        authorizationStatus = manager.authorizationStatus
+
+        switch authorizationStatus {
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        case .authorizedAlways, .authorizedWhenInUse:
+            startUpdatingLocation()
+        case .denied, .restricted:
+            manager.stopUpdatingLocation()
+        @unknown default:
+            break
+        }
+    }
+
+    func refreshLocation() {
+        requestPermission()
+
+        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+            manager.requestLocation()
+        }
+    }
+
+    var latitude: Double { lastLocation?.coordinate.latitude ?? 0 }
+    var longitude: Double { lastLocation?.coordinate.longitude ?? 0 }
+    var coordinate: CLLocationCoordinate2D? { lastLocation?.coordinate }
+
+    private func startUpdatingLocation() {
+        manager.startUpdatingLocation()
+        manager.requestLocation()
     }
 }
 
@@ -27,7 +56,7 @@ extension LocationService: CLLocationManagerDelegate {
         authorizationStatus = manager.authorizationStatus
 
         if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
-            manager.startUpdatingLocation()
+            startUpdatingLocation()
         }
     }
 
@@ -35,7 +64,5 @@ extension LocationService: CLLocationManagerDelegate {
         lastLocation = locations.last
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Location is optional for sessions; failures are non-fatal.
-    }
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}
 }

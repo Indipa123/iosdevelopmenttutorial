@@ -25,6 +25,8 @@ final class QuizRushViewModel: ObservableObject {
     @Published private(set) var selectedAnswer: String?
     @Published private(set) var feedback: AnswerFeedback?
     @Published private(set) var feedbackToken = UUID()
+    @Published var selectedCategory: QuizCategory = .sports
+    @Published var selectedDifficulty: QuizDifficulty = .easy
 
     private let service: TriviaQuestionServicing
     private let highScoreKey = "quizRushHighScore"
@@ -39,6 +41,10 @@ final class QuizRushViewModel: ObservableObject {
         "\(min(currentIndex + 1, questions.count)) of \(questions.count)"
     }
 
+    var setupSummary: String {
+        "\(selectedCategory.displayName) - \(selectedDifficulty.displayName)"
+    }
+
     convenience init() {
         self.init(service: OpenTriviaService())
     }
@@ -49,7 +55,7 @@ final class QuizRushViewModel: ObservableObject {
     }
 
     func loadIfNeeded() async {
-        guard state == .idle else { return }
+        guard state == .idle, !questions.isEmpty else { return }
         await load()
     }
 
@@ -58,7 +64,7 @@ final class QuizRushViewModel: ObservableObject {
         resetRound(keepingQuestions: false)
 
         do {
-            questions = try await service.fetchQuestions()
+            questions = try await service.fetchQuestions(category: selectedCategory, difficulty: selectedDifficulty)
             state = .loaded
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? "Something went wrong. Please try again."
@@ -74,6 +80,11 @@ final class QuizRushViewModel: ObservableObject {
         await load()
     }
 
+    func returnToSetup() {
+        resetRound(keepingQuestions: false)
+        state = .idle
+    }
+
     func submitAnswer(_ answer: String) {
         guard !isAnswerLocked, state == .loaded, let question = currentQuestion else { return }
 
@@ -82,7 +93,7 @@ final class QuizRushViewModel: ObservableObject {
 
         if answer == question.correctAnswer {
             streak += 1
-            score += 10 + max(0, streak - 1) * 3
+            score += selectedDifficulty.baseScore + max(0, streak - 1) * 3
             feedback = .correct
         } else {
             streak = 0
@@ -115,7 +126,12 @@ final class QuizRushViewModel: ObservableObject {
             highScore = score
             UserDefaults.standard.set(score, forKey: highScoreKey)
         }
-        // TODO (Week 4 Step 3): append a GameSession via GameSessionStore here.
+        GameSessionStore.append(GameSession(
+            mode: .quizRush,
+            score: score,
+            latitude: LocationService.shared.latitude,
+            longitude: LocationService.shared.longitude
+        ))
         state = .finished
     }
 

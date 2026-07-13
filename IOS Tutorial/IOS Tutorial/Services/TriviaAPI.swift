@@ -1,13 +1,12 @@
 import Foundation
 
 protocol TriviaQuestionServicing {
-    func fetchQuestions() async throws -> [QuizQuestion]
+    func fetchQuestions(category: QuizCategory, difficulty: QuizDifficulty) async throws -> [QuizQuestion]
 }
 
 struct OpenTriviaService: TriviaQuestionServicing {
-    private let url = URL(string: "https://opentdb.com/api.php?amount=10&type=multiple")!
-
-    func fetchQuestions() async throws -> [QuizQuestion] {
+    func fetchQuestions(category: QuizCategory, difficulty: QuizDifficulty) async throws -> [QuizQuestion] {
+        let url = try makeURL(category: category, difficulty: difficulty)
         let (data, response) = try await URLSession.shared.data(from: url)
 
         guard let httpResponse = response as? HTTPURLResponse,
@@ -30,6 +29,30 @@ struct OpenTriviaService: TriviaQuestionServicing {
             )
         }
     }
+
+    private func makeURL(category: QuizCategory, difficulty: QuizDifficulty) throws -> URL {
+        var components = URLComponents(string: "https://opentdb.com/api.php")
+        var queryItems = [
+            URLQueryItem(name: "amount", value: "10"),
+            URLQueryItem(name: "type", value: "multiple")
+        ]
+
+        if let categoryID = category.apiID {
+            queryItems.append(URLQueryItem(name: "category", value: "\(categoryID)"))
+        }
+
+        if let difficultyValue = difficulty.apiValue {
+            queryItems.append(URLQueryItem(name: "difficulty", value: difficultyValue))
+        }
+
+        components?.queryItems = queryItems
+
+        guard let url = components?.url else {
+            throw QuizRushError.badResponse
+        }
+
+        return url
+    }
 }
 
 enum QuizRushError: LocalizedError {
@@ -45,8 +68,6 @@ enum QuizRushError: LocalizedError {
         }
     }
 }
-
-// MARK: - HTML Decoding
 
 fileprivate extension String {
     var htmlDecoded: String {

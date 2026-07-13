@@ -1,8 +1,6 @@
 import SwiftUI
 internal import Combine
 
-// MARK: - Game Models
-
 struct LightLevel: Identifiable, Equatable {
     let number: Int
     let cardCount: Int
@@ -69,12 +67,9 @@ struct LightCard: Identifiable {
     var bumpScale: CGFloat = 1.0
 }
 
-// MARK: - ViewModel
-
 @MainActor
 final class LightItUpViewModel: ObservableObject {
 
-    /// Game-logic events the view reacts to with sounds, haptics and overlay animations.
     enum GameEvent {
         case cardsLit
         case correctTap
@@ -107,8 +102,6 @@ final class LightItUpViewModel: ObservableObject {
     }
 
     var isNewHighScore: Bool { score == highScore && score > 0 }
-
-    // MARK: - Game Lifecycle
 
     func resetGame(roundLength: Int) {
         gameTask?.cancel()
@@ -258,8 +251,6 @@ final class LightItUpViewModel: ObservableObject {
         onEvent?(.levelUp(newLevel))
     }
 
-    // MARK: - Tap Handling
-
     func tapCard(_ card: LightCard) {
         guard hasStarted, !gameOver else { return }
         guard let index = cards.firstIndex(where: { $0.id == card.id }) else { return }
@@ -318,7 +309,13 @@ final class LightItUpViewModel: ObservableObject {
         gameTask?.cancel()
         countdownTask?.cancel()
 
-        // TODO (Week 4 Step 3): append a GameSession via GameSessionStore here.
+        GameSessionStore.append(GameSession(
+            mode: .lightItUp,
+            score: score,
+            latitude: LocationService.shared.latitude,
+            longitude: LocationService.shared.longitude
+        ))
+
         var isNewHigh = false
         if score > highScore {
             highScore = score

@@ -112,8 +112,6 @@ struct LightItUpView: View {
         }
     }
 
-    // MARK: - Stats Header
-
     private var statsHeader: some View {
         let columns = Array(
             repeating: GridItem(.flexible(minimum: 0), spacing: 8),
@@ -188,8 +186,6 @@ struct LightItUpView: View {
         )
     }
 
-    // MARK: - Level Badge
-
     private var levelBadge: some View {
         HStack(spacing: 10) {
             Circle()
@@ -221,8 +217,6 @@ struct LightItUpView: View {
         .shadow(color: viewModel.currentLevel.glowColor.opacity(0.5), radius: 12)
     }
 
-    // MARK: - Time Bar
-
     private var timeBar: some View {
         GeometryReader { geo in
             let progress = max(0, min(1, Double(viewModel.timeRemaining) / Double(roundLength)))
@@ -247,8 +241,6 @@ struct LightItUpView: View {
         .frame(height: 6)
     }
 
-    // MARK: - Card Grid
-
     private var cardGrid: some View {
         let columns = Array(
             repeating: GridItem(.flexible(minimum: 0), spacing: 14),
@@ -268,8 +260,6 @@ struct LightItUpView: View {
         .animation(.spring(response: 0.45, dampingFraction: 0.75), value: viewModel.currentLevel)
         .animation(.spring(response: 0.35, dampingFraction: 0.72), value: viewModel.cards.map(\.id))
     }
-
-    // MARK: - Start Overlay
 
     private var startOverlay: some View {
         ZStack {
@@ -337,8 +327,6 @@ struct LightItUpView: View {
             .shadow(color: .black.opacity(0.5), radius: 30)
         }
     }
-
-    // MARK: - Game Over Overlay
 
     private var gameOverOverlay: some View {
         ZStack {
@@ -420,8 +408,6 @@ struct LightItUpView: View {
         }
     }
 
-    // MARK: - Level Up Overlay
-
     private var levelUpOverlay: some View {
         ZStack {
             viewModel.currentLevel.glowColor.opacity(0.35)
@@ -448,8 +434,6 @@ struct LightItUpView: View {
         level.ruleSummary.uppercased()
     }
 
-    // MARK: - Game Lifecycle
-
     private func resetGame() {
         viewModel.resetGame(roundLength: roundLength)
 
@@ -467,8 +451,6 @@ struct LightItUpView: View {
 
         viewModel.startGame(roundLength: roundLength)
     }
-
-    // MARK: - Game Events
 
     private func handleEvent(_ event: LightItUpViewModel.GameEvent) {
         switch event {
@@ -503,8 +485,6 @@ struct LightItUpView: View {
             animateFinalScoreCountUp()
         }
     }
-
-    // MARK: - Effects
 
     private func triggerLevelUpFlash(_ level: LightLevel) {
         levelUpText = "LEVEL \(level.number)"
@@ -606,8 +586,6 @@ struct LightItUpView: View {
     }
 }
 
-// MARK: - Card View
-
 struct LightCardView: View {
     let card: LightCard
     let glowColor: Color
@@ -661,8 +639,6 @@ struct LightCardView: View {
         .buttonStyle(.plain)
     }
 }
-
-// MARK: - Settings Sheet
 
 struct SettingsSheet: View {
     @Binding var roundLength: Int

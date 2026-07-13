@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Shared end-of-round panel with a ShareLink.
-/// TODO (Week 4 ShareLink step): adopt this on each game's game-over screen.
 struct ResultView: View {
     let gameTitle: String
     let score: Int

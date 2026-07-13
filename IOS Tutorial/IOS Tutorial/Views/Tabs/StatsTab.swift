@@ -2,26 +2,46 @@ import SwiftUI
 
 struct StatsTab: View {
     @StateObject private var viewModel = StatsViewModel()
+    @Environment(\.horizontalSizeClass) private var hSize
+
+    private var isRegularWidth: Bool { hSize == .regular }
+    private var contentMaxWidth: CGFloat { isRegularWidth ? 640 : 360 }
+    private var outerHorizontalPadding: CGFloat { isRegularWidth ? 32 : 24 }
+    private var compactColumns: [GridItem] {
+        [GridItem(.flexible(minimum: 0), spacing: 10)]
+    }
+    private var twoColumns: [GridItem] {
+        [
+            GridItem(.flexible(minimum: 0), spacing: 10),
+            GridItem(.flexible(minimum: 0), spacing: 10)
+        ]
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 WallpaperBackground()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 18) {
-                        if viewModel.sessions.isEmpty {
-                            emptyState
-                        } else {
-                            totals
-                            personalBests
-                            recentGames
-                            // TODO (Week 4 Step 4): add a bar chart per mode using the Charts framework.
+                GeometryReader { proxy in
+                    let contentWidth = max(0, min(proxy.size.width - outerHorizontalPadding * 2, contentMaxWidth))
+
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 18) {
+                            if viewModel.sessions.isEmpty {
+                                emptyState
+                            } else {
+                                totals
+                                personalBests
+                                recentGames
+                            }
                         }
+                        .frame(width: contentWidth, alignment: .center)
+                        .padding(.horizontal, outerHorizontalPadding)
+                        .padding(.top, 10)
+                        .padding(.bottom, 110)
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
-                    .padding(18)
-                    .frame(maxWidth: 640)
-                    .frame(maxWidth: .infinity)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                 }
 
                 VignetteOverlay()
@@ -60,14 +80,14 @@ struct StatsTab: View {
     }
 
     private var totals: some View {
-        HStack(spacing: 10) {
+        LazyVGrid(columns: twoColumns, spacing: 10) {
             ScoreBadge(title: "GAMES PLAYED", value: "\(viewModel.totalGames)", color: .cyan)
             ScoreBadge(title: "TOTAL SCORE", value: "\(viewModel.totalScore)", color: .yellow)
         }
     }
 
     private var personalBests: some View {
-        HStack(spacing: 10) {
+        LazyVGrid(columns: isRegularWidth ? twoColumns : compactColumns, spacing: 10) {
             ForEach(GameMode.allCases) { mode in
                 ScoreBadge(
                     title: mode.displayName.uppercased(),
@@ -84,6 +104,8 @@ struct StatsTab: View {
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .foregroundColor(.white.opacity(0.55))
                 .tracking(3)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             ForEach(viewModel.recentSessions) { session in
                 HStack(spacing: 12) {
@@ -97,16 +119,21 @@ struct StatsTab: View {
                         Text(session.mode.displayName)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                         Text(session.timestamp.formatted(date: .abbreviated, time: .shortened))
                             .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundColor(.white.opacity(0.55))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
-
-                    Spacer()
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     Text("\(session.score)")
                         .font(.system(size: 17, weight: .heavy, design: .rounded))
                         .foregroundColor(session.mode.accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)

@@ -25,8 +25,6 @@ struct GameSession: Identifiable, Codable {
     }
 }
 
-// MARK: - Persistence
-
 enum GameSessionStore {
     private static let key = "gameSessions"
 

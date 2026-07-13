@@ -242,8 +242,6 @@ struct HomeTab: View {
     }
 }
 
-// MARK: - Summary Stat Card
-
 struct SummaryStat: View {
     let label: String
     let value: String
@@ -293,8 +291,6 @@ struct SummaryStat: View {
         )
     }
 }
-
-// MARK: - Game Feature Card
 
 struct GameFeatureCard: View {
     let title: String
@@ -418,8 +414,6 @@ struct GameFeatureCard: View {
     }
 }
 
-// MARK: - Tap Frenzy Mini Preview
-
 struct TapFrenzyPreview: View {
     @State private var pulse: CGFloat = 1.0
     @State private var ringScale: CGFloat = 1.0
@@ -470,8 +464,6 @@ struct TapFrenzyPreview: View {
         }
     }
 }
-
-// MARK: - Light It Up Mini Preview
 
 struct LightItUpPreview: View {
     @State private var litIndex: Int = 4
@@ -542,8 +534,6 @@ struct LightItUpPreview: View {
         colorIndex = (colorIndex + 1) % colors.count
     }
 }
-
-// MARK: - Button Style
 
 struct ModeCardButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {

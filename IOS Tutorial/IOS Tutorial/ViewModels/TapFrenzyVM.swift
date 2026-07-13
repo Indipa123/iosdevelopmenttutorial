@@ -86,7 +86,13 @@ final class TapFrenzyViewModel: ObservableObject {
     private func endGame() -> Bool {
         gameOver = true
 
-        // TODO (Week 4 Step 3): append a GameSession via GameSessionStore here.
+        GameSessionStore.append(GameSession(
+            mode: .tapFrenzy,
+            score: score,
+            latitude: LocationService.shared.latitude,
+            longitude: LocationService.shared.longitude
+        ))
+
         if score > highScore {
             highScore = score
             UserDefaults.standard.set(score, forKey: highScoreKey)

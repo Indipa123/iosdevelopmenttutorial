@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Compact stat pill used across the quiz header, result screens and the Stats tab.
 struct ScoreBadge: View {
     let title: String
     let value: String

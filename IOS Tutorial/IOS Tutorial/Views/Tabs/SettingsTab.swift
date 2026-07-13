@@ -6,7 +6,6 @@ struct SettingsTab: View {
 
     @State private var showResetConfirmation = false
 
-    /// 6:00 PM today, stored as a time interval so it fits in AppStorage.
     private static var defaultChallengeTime: Double {
         let components = DateComponents(hour: 18, minute: 0)
         let date = Calendar.current.date(from: components) ?? Date()

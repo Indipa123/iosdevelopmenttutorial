@@ -35,9 +35,6 @@ struct QuizRushView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .task {
-            await viewModel.loadIfNeeded()
-        }
         .onChange(of: viewModel.feedbackToken) { _, _ in
             animateFeedback()
         }
@@ -46,7 +43,9 @@ struct QuizRushView: View {
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
-        case .idle, .loading:
+        case .idle:
+            setupView
+        case .loading:
             loadingView
         case .failed(let message):
             errorView(message)
@@ -54,6 +53,81 @@ struct QuizRushView: View {
             questionView
         case .finished:
             resultView
+        }
+    }
+
+    private var setupView: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 18) {
+                VStack(spacing: 8) {
+                    Text("QUIZ RUSH")
+                        .font(.system(size: 38, weight: .black, design: .rounded))
+                        .foregroundStyle(LinearGradient(colors: [.white, .orange, .pink], startPoint: .top, endPoint: .bottom))
+                        .shadow(color: .orange.opacity(0.65), radius: 14)
+                        .tracking(2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    Text("Pick your question type and challenge level.")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.72))
+                        .multilineTextAlignment(.center)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    setupSectionTitle("QUESTION TYPE")
+
+                    LazyVGrid(columns: setupColumns, spacing: 10) {
+                        ForEach(QuizCategory.allCases) { category in
+                            optionButton(
+                                title: category.displayName,
+                                icon: category.icon,
+                                isSelected: viewModel.selectedCategory == category
+                            ) {
+                                viewModel.selectedCategory = category
+                            }
+                        }
+                    }
+                }
+                .padding(18)
+                .background(panelBackground(cornerRadius: 24))
+
+                VStack(alignment: .leading, spacing: 12) {
+                    setupSectionTitle("DIFFICULTY")
+
+                    LazyVGrid(columns: setupColumns, spacing: 10) {
+                        ForEach(QuizDifficulty.allCases) { difficulty in
+                            optionButton(
+                                title: difficulty.displayName,
+                                icon: difficultyIcon(for: difficulty),
+                                isSelected: viewModel.selectedDifficulty == difficulty
+                            ) {
+                                viewModel.selectedDifficulty = difficulty
+                            }
+                        }
+                    }
+                }
+                .padding(18)
+                .background(panelBackground(cornerRadius: 24))
+
+                Button {
+                    Task { await viewModel.load() }
+                } label: {
+                    Label("START \(viewModel.setupSummary.uppercased())", systemImage: "play.fill")
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                        .tracking(1.2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .padding(.vertical, 15)
+                        .frame(maxWidth: .infinity)
+                        .background(LinearGradient(colors: [.orange, .pink], startPoint: .leading, endPoint: .trailing))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .orange.opacity(0.55), radius: 14)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 18)
         }
     }
 
@@ -68,7 +142,7 @@ struct QuizRushView: View {
                 .foregroundStyle(LinearGradient(colors: [.white, .orange], startPoint: .top, endPoint: .bottom))
                 .tracking(2)
 
-            Text("Fetching 10 live questions from Open Trivia DB.")
+            Text("Fetching 10 \(viewModel.setupSummary.lowercased()) questions from Open Trivia DB.")
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundColor(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
@@ -156,6 +230,13 @@ struct QuizRushView: View {
                 ScoreBadge(title: "SCORE", value: "\(viewModel.score)", color: .yellow)
                 ScoreBadge(title: "STREAK", value: "\(viewModel.streak)", color: .green)
             }
+
+            Text(viewModel.setupSummary.uppercased())
+                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                .foregroundColor(.white.opacity(0.58))
+                .tracking(2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
     }
 
@@ -233,6 +314,20 @@ struct QuizRushView: View {
                     .shadow(color: .orange.opacity(0.55), radius: 14)
             }
             .buttonStyle(.plain)
+
+            Button {
+                viewModel.returnToSetup()
+            } label: {
+                Label("CHANGE SETUP", systemImage: "slider.horizontal.3")
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .foregroundColor(.white)
+                    .tracking(1.4)
+                    .padding(.vertical, 13)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.white.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+            .buttonStyle(.plain)
         }
         .padding(28)
         .frame(maxWidth: .infinity)
@@ -270,6 +365,61 @@ struct QuizRushView: View {
         return AnyShapeStyle(Color.white.opacity(0.08))
     }
 
+    private var setupColumns: [GridItem] {
+        let count = isRegularWidth ? 3 : 2
+        return Array(repeating: GridItem(.flexible(minimum: 0), spacing: 10), count: count)
+    }
+
+    private func setupSectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .heavy, design: .rounded))
+            .foregroundColor(.white.opacity(0.58))
+            .tracking(2.5)
+    }
+
+    private func optionButton(title: String, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .heavy))
+                    .foregroundColor(isSelected ? .white : .orange)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        Circle()
+                            .fill(isSelected ? Color.white.opacity(0.22) : Color.orange.opacity(0.16))
+                    )
+
+                Text(title.uppercased())
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .foregroundColor(.white)
+                    .tracking(1.2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 82)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? Color.orange.opacity(0.32) : Color.white.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isSelected ? Color.orange.opacity(0.95) : Color.white.opacity(0.14), lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func difficultyIcon(for difficulty: QuizDifficulty) -> String {
+        switch difficulty {
+        case .any: return "shuffle"
+        case .easy: return "1.circle.fill"
+        case .medium: return "2.circle.fill"
+        case .hard: return "3.circle.fill"
+        }
+    }
+
     private func panelBackground(cornerRadius: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: cornerRadius)
             .fill(.ultraThinMaterial)
@@ -280,8 +430,6 @@ struct QuizRushView: View {
             .shadow(color: .black.opacity(0.28), radius: 20, y: 8)
     }
 }
-
-// MARK: - Home Preview
 
 struct QuizRushPreview: View {
     var body: some View {
