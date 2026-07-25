@@ -6,7 +6,7 @@ struct SettingsTab: View {
     @AppStorage("dailyChallengeTime") private var dailyChallengeTime = SettingsTab.defaultChallengeTime
     @AppStorage("appAppearance") private var appAppearance = AppAppearance.system.rawValue
     @AppStorage("playerDisplayName") private var playerDisplayName = "Player One"
-    @AppStorage("playerAvatar") private var playerAvatar = PlayerAvatar.bolt.rawValue
+    @AppStorage("playerAvatar") private var playerAvatar = PlayerAvatar.aria.rawValue
     @AppStorage("playerPhotoData") private var playerPhotoData = Data()
     @AppStorage("playerUsesCustomPhoto") private var playerUsesCustomPhoto = false
     @State private var showResetConfirmation = false
