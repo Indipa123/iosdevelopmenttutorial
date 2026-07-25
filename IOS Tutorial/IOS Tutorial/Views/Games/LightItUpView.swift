@@ -29,28 +29,21 @@ struct LightItUpView: View {
 
     var body: some View {
         ZStack {
-            WallpaperBackground()
+            GameBackdrop(accent: AppTheme.primary)
 
             GeometryReader { proxy in
                 let contentWidth = max(0, min(proxy.size.width - outerHorizontalPadding * 2, contentMaxWidth))
 
-                VStack(spacing: 18) {
+                VStack(spacing: 14) {
+                    gameHeader
+
                     statsHeader
 
-                    levelBadge
-
-                    timeBar
-
-                    Spacer(minLength: 8)
-
-                    cardGrid
-                        .padding(.horizontal, 12)
-
-                    Spacer(minLength: 8)
+                    gameBoard
                 }
                 .frame(width: contentWidth)
                 .clipped()
-                .padding(.top, 8)
+                .padding(.top, 14)
                 .padding(.bottom, 18)
                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
             }
@@ -84,7 +77,6 @@ struct LightItUpView: View {
         .navigationTitle("Light It Up")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -92,7 +84,7 @@ struct LightItUpView: View {
                 } label: {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.ink)
                 }
                 .disabled(viewModel.hasStarted && !viewModel.gameOver)
                 .opacity(viewModel.hasStarted && !viewModel.gameOver ? 0.3 : 1)
@@ -112,6 +104,36 @@ struct LightItUpView: View {
         }
     }
 
+    private var gameHeader: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("FOCUS CHALLENGE", systemImage: "circle.grid.cross.fill")
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .foregroundColor(AppTheme.primary)
+                    .tracking(1.2)
+
+                Text("Light It Up")
+                    .font(.system(size: 29, weight: .black, design: .rounded))
+                    .foregroundColor(AppTheme.ink)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("PERSONAL BEST")
+                    .font(.system(size: 8, weight: .heavy, design: .rounded))
+                    .foregroundColor(AppTheme.secondaryInk)
+                    .tracking(1.1)
+                Text(viewModel.highScore == 0 ? "—" : viewModel.highScore.formatted())
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .foregroundColor(AppTheme.amber)
+            }
+            .padding(.horizontal, 11)
+            .padding(.vertical, 9)
+            .background(AppTheme.amber.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+    }
+
     private var statsHeader: some View {
         let columns = Array(
             repeating: GridItem(.flexible(minimum: 0), spacing: 8),
@@ -119,8 +141,8 @@ struct LightItUpView: View {
         )
 
         return LazyVGrid(columns: columns, spacing: 8) {
-            stat(title: "SCORE", value: "\(viewModel.score)", color: .yellow, scale: scoreBump)
-            stat(title: "TIME", value: "\(viewModel.timeRemaining)", color: viewModel.timeRemaining <= 5 ? .red : .white)
+            stat(title: "SCORE", value: "\(viewModel.score)", color: AppTheme.amber, scale: scoreBump)
+            stat(title: "TIME", value: "\(viewModel.timeRemaining)", color: viewModel.timeRemaining <= 5 ? .red : AppTheme.ink)
             livesView
         }
     }
@@ -129,7 +151,7 @@ struct LightItUpView: View {
         VStack(spacing: 2) {
             Text(title)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundColor(.white.opacity(0.65))
+                .foregroundColor(AppTheme.ink.opacity(0.65))
                 .tracking(1.2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -146,10 +168,10 @@ struct LightItUpView: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
+                .fill(AppTheme.surface)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AppTheme.secondaryInk.opacity(0.15), lineWidth: 1)
                 )
         )
     }
@@ -158,7 +180,7 @@ struct LightItUpView: View {
         VStack(spacing: 2) {
             Text("LIVES")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundColor(.white.opacity(0.65))
+                .foregroundColor(AppTheme.ink.opacity(0.65))
                 .tracking(1.2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -166,7 +188,7 @@ struct LightItUpView: View {
                 ForEach(0..<3, id: \.self) { i in
                     Image(systemName: i < viewModel.lives ? "heart.fill" : "heart")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(i < viewModel.lives ? .red : .white.opacity(0.3))
+                        .foregroundColor(i < viewModel.lives ? .red : AppTheme.ink.opacity(0.3))
                         .shadow(color: i < viewModel.lives ? .red.opacity(0.6) : .clear, radius: 6)
                         .scaleEffect(heartScale[i])
                         .offset(x: heartShake[i])
@@ -178,10 +200,10 @@ struct LightItUpView: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
+                .fill(AppTheme.surface)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AppTheme.secondaryInk.opacity(0.15), lineWidth: 1)
                 )
         )
     }
@@ -195,21 +217,21 @@ struct LightItUpView: View {
 
             Text("LEVEL \(viewModel.currentLevel.number)")
                 .font(.system(size: 14, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundColor(AppTheme.ink)
                 .tracking(2.5)
 
             Text("·")
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundColor(AppTheme.ink.opacity(0.5))
 
             Text("\(String(format: "%.1f", viewModel.currentLevel.litWindow))s")
                 .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundColor(.white.opacity(0.75))
+                .foregroundColor(AppTheme.ink.opacity(0.75))
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 8)
         .background(
             Capsule()
-                .fill(.ultraThinMaterial)
+                .fill(AppTheme.surface)
                 .overlay(
                     Capsule().stroke(viewModel.currentLevel.glowColor.opacity(0.65), lineWidth: 1.5)
                 )
@@ -217,24 +239,53 @@ struct LightItUpView: View {
         .shadow(color: viewModel.currentLevel.glowColor.opacity(0.5), radius: 12)
     }
 
+    private var gameBoard: some View {
+        VStack(spacing: 14) {
+            HStack {
+                levelBadge
+                Spacer(minLength: 8)
+                Text(viewModel.currentLevel.requiresOrderedTaps ? "TAP IN ORDER" : "FIND THE GLOW")
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .foregroundColor(AppTheme.secondaryInk)
+                    .tracking(1.2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+            }
+
+            timeBar
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 25, style: .continuous)
+                    .fill(AppTheme.primary.opacity(0.045))
+
+                cardGrid
+                    .padding(18)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 270)
+        }
+        .padding(14)
+        .appSurface(cornerRadius: 26)
+    }
+
     private var timeBar: some View {
         GeometryReader { geo in
             let progress = max(0, min(1, Double(viewModel.timeRemaining) / Double(roundLength)))
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.white.opacity(0.08))
+                    .fill(AppTheme.secondaryInk.opacity(0.08))
                     .frame(height: 6)
 
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: viewModel.timeRemaining <= 5 ? [.red, .orange] : [.cyan, .blue, .purple],
+                            colors: viewModel.timeRemaining <= 5 ? [.red, AppTheme.amber] : [AppTheme.primary, AppTheme.primary, AppTheme.primary],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .frame(width: geo.size.width * progress, height: 6)
-                    .shadow(color: (viewModel.timeRemaining <= 5 ? Color.red : Color.cyan).opacity(0.7), radius: 6)
+                    .shadow(color: (viewModel.timeRemaining <= 5 ? Color.red : AppTheme.primary).opacity(0.7), radius: 6)
                     .animation(.easeInOut(duration: 0.4), value: progress)
             }
         }
@@ -243,11 +294,11 @@ struct LightItUpView: View {
 
     private var cardGrid: some View {
         let columns = Array(
-            repeating: GridItem(.flexible(minimum: 0), spacing: 14),
+            repeating: GridItem(.flexible(minimum: 0), spacing: 10),
             count: viewModel.currentLevel.columns
         )
 
-        return LazyVGrid(columns: columns, spacing: 14) {
+        return LazyVGrid(columns: columns, spacing: 10) {
             ForEach(viewModel.cards) { card in
                 LightCardView(
                     card: card,
@@ -263,45 +314,50 @@ struct LightItUpView: View {
 
     private var startOverlay: some View {
         ZStack {
-            Color.black.opacity(0.65)
+            AppTheme.scrim.opacity(0.58)
                 .ignoresSafeArea()
 
-            VStack(spacing: 22) {
+            VStack(spacing: 18) {
                 Image(systemName: "square.grid.3x3.fill")
-                    .font(.system(size: 56, weight: .heavy))
-                    .foregroundStyle(
-                        LinearGradient(colors: [.cyan, .blue, .purple], startPoint: .top, endPoint: .bottom)
-                    )
-                    .shadow(color: .cyan.opacity(0.8), radius: 14)
+                    .font(.system(size: 48, weight: .heavy))
+                    .foregroundColor(AppTheme.primary)
+                    .frame(width: 82, height: 82)
+                    .background(AppTheme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
-                Text("LIGHT IT UP")
-                    .font(.system(size: 38, weight: .heavy, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(colors: [.white, .cyan], startPoint: .top, endPoint: .bottom)
-                    )
-                    .shadow(color: .cyan.opacity(0.7), radius: 12)
-                    .tracking(3)
+                VStack(spacing: 7) {
+                    Text("READY TO FOCUS?")
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .foregroundColor(AppTheme.primary)
+                        .tracking(1.8)
 
-                Text("Tap lit cards before they fade.\nCards move. Later levels require order.")
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.85))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(3)
+                    Text("Light It Up")
+                        .font(.system(size: 32, weight: .black, design: .rounded))
+                        .foregroundColor(AppTheme.ink)
+
+                    Text("Find the glowing tiles before they disappear.\nStay sharp as the board gets faster.")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(AppTheme.secondaryInk)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(3)
+                }
+
+                HStack(spacing: 8) {
+                    startRule(icon: "eye.fill", text: "Spot")
+                    startRule(icon: "hand.tap.fill", text: "Tap")
+                    startRule(icon: "arrow.up.right", text: "Level up")
+                }
 
                 Button {
                     startGame()
                 } label: {
-                    Text("START  \(roundLength)s")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    Label("START \(roundLength) SEC", systemImage: "play.fill")
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
-                        .tracking(1.5)
-                        .padding(.vertical, 14)
-                        .frame(width: 240)
-                        .background(
-                            LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)
-                        )
-                        .cornerRadius(18)
-                        .shadow(color: .blue.opacity(0.7), radius: 14)
+                        .tracking(1.2)
+                        .padding(.vertical, 15)
+                        .frame(maxWidth: .infinity)
+                        .background(AppTheme.primary, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                        .shadow(color: AppTheme.primary.opacity(0.7), radius: 14)
                 }
 
                 if viewModel.highScore > 0 {
@@ -310,47 +366,56 @@ struct LightItUpView: View {
                         Text("HIGH SCORE  \(viewModel.highScore)")
                     }
                     .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(.yellow)
+                    .foregroundColor(AppTheme.amber)
                     .tracking(1.5)
                 }
             }
-            .padding(36)
+            .padding(26)
             .background(
                 RoundedRectangle(cornerRadius: 28)
-                    .fill(.ultraThinMaterial)
+                    .fill(AppTheme.surface)
                     .overlay(
                         RoundedRectangle(cornerRadius: 28)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            .stroke(AppTheme.secondaryInk.opacity(0.2), lineWidth: 1)
                     )
             )
-            .padding(.horizontal, 28)
-            .shadow(color: .black.opacity(0.5), radius: 30)
+            .padding(.horizontal, 22)
+            .shadow(color: AppTheme.shadow.opacity(0.22), radius: 30, y: 10)
         }
+    }
+
+    private func startRule(icon: String, text: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.system(size: 10, weight: .heavy, design: .rounded))
+            .foregroundColor(AppTheme.secondaryInk)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(AppTheme.primary.opacity(0.06), in: Capsule())
     }
 
     private var gameOverOverlay: some View {
         ZStack {
-            Color.black.opacity(0.65)
+            AppTheme.scrim.opacity(0.58)
                 .ignoresSafeArea()
 
             VStack(spacing: 18) {
                 Text(viewModel.lives == 0 ? "OUT OF LIVES" : "TIME'S UP")
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .foregroundStyle(
-                        LinearGradient(colors: [.white, .red.opacity(0.8)], startPoint: .top, endPoint: .bottom)
+                        LinearGradient(colors: [AppTheme.ink, .red.opacity(0.8)], startPoint: .top, endPoint: .bottom)
                     )
                     .shadow(color: .red.opacity(0.6), radius: 12)
                     .tracking(2)
 
                 Text("FINAL SCORE")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.75))
+                    .foregroundColor(AppTheme.ink.opacity(0.75))
                     .tracking(2)
 
                 Text("\(displayedFinalScore)")
                     .font(.system(size: 76, weight: .heavy, design: .rounded))
-                    .foregroundColor(.yellow)
-                    .shadow(color: .yellow.opacity(0.8), radius: 18)
+                    .foregroundColor(AppTheme.amber)
+                    .shadow(color: AppTheme.amber.opacity(0.8), radius: 18)
                     .contentTransition(.numericText())
 
                 if viewModel.isNewHighScore {
@@ -359,14 +424,14 @@ struct LightItUpView: View {
                             .font(.system(size: 70))
                             .rotationEffect(.degrees(trophyRotation))
                             .scaleEffect(celebrateScale)
-                            .shadow(color: .yellow.opacity(0.9), radius: 20)
+                            .shadow(color: AppTheme.amber.opacity(0.9), radius: 20)
 
                         Text("NEW HIGH SCORE!")
                             .font(.system(size: 18, weight: .heavy, design: .rounded))
                             .foregroundStyle(
-                                LinearGradient(colors: [.green, .yellow], startPoint: .leading, endPoint: .trailing)
+                                LinearGradient(colors: [AppTheme.mint, AppTheme.amber], startPoint: .leading, endPoint: .trailing)
                             )
-                            .shadow(color: .green.opacity(0.7), radius: 10)
+                            .shadow(color: AppTheme.mint.opacity(0.7), radius: 10)
                             .scaleEffect(celebrateScale)
                             .tracking(1.5)
                     }
@@ -374,7 +439,7 @@ struct LightItUpView: View {
 
                 Text("HIGH SCORE  \(viewModel.highScore)")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppTheme.ink)
                     .tracking(1.5)
 
                 Button {
@@ -383,24 +448,24 @@ struct LightItUpView: View {
                 } label: {
                     Text("PLAY AGAIN")
                         .font(.system(size: 20, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.ink)
                         .tracking(1.5)
                         .padding(.vertical, 13)
                         .frame(width: 220)
                         .background(
-                            LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)
+                            LinearGradient(colors: [AppTheme.primary, AppTheme.primary], startPoint: .leading, endPoint: .trailing)
                         )
                         .cornerRadius(16)
-                        .shadow(color: .blue.opacity(0.7), radius: 14)
+                        .shadow(color: AppTheme.primary.opacity(0.7), radius: 14)
                 }
             }
             .padding(28)
             .background(
                 RoundedRectangle(cornerRadius: 28)
-                    .fill(.ultraThinMaterial)
+                    .fill(AppTheme.surface)
                     .overlay(
                         RoundedRectangle(cornerRadius: 28)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            .stroke(AppTheme.secondaryInk.opacity(0.2), lineWidth: 1)
                     )
             )
             .padding(.horizontal, 28)
@@ -417,13 +482,13 @@ struct LightItUpView: View {
             VStack(spacing: 8) {
                 Text(levelUpText)
                     .font(.system(size: 80, weight: .black, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppTheme.ink)
                     .shadow(color: viewModel.currentLevel.glowColor, radius: 28)
                     .tracking(6)
 
                 Text(levelDescription(for: viewModel.currentLevel))
                     .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(AppTheme.ink.opacity(0.9))
                     .tracking(3)
             }
             .scaleEffect(levelFlashScale)
@@ -604,26 +669,26 @@ struct LightCardView: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            : AnyShapeStyle(Color.white.opacity(0.06))
+                            : AnyShapeStyle(AppTheme.secondaryInk.opacity(0.06))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 18)
                             .stroke(
-                                card.isLit ? Color.white.opacity(0.5) : Color.white.opacity(0.12),
+                                card.isLit ? AppTheme.secondaryInk.opacity(0.5) : AppTheme.secondaryInk.opacity(0.12),
                                 lineWidth: card.isLit ? 2 : 1
                             )
                     )
 
                 if card.isLit {
                     RoundedRectangle(cornerRadius: 18)
-                        .fill(Color.white.opacity(0.18))
+                        .fill(AppTheme.secondaryInk.opacity(0.18))
                         .padding(8)
                         .blur(radius: 4)
 
                     if let targetOrder = card.targetOrder {
                         Text("\(targetOrder)")
                             .font(.system(size: 28, weight: .black, design: .rounded))
-                            .foregroundColor(.white)
+                            .foregroundColor(AppTheme.ink)
                             .shadow(color: .black.opacity(0.45), radius: 5)
                     }
                 }
@@ -637,6 +702,9 @@ struct LightCardView: View {
             .animation(.spring(response: 0.28, dampingFraction: 0.55), value: card.isLit)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(card.isLit ? "Lit target" : "Unlit card")
+        .accessibilityValue(card.targetOrder.map { "Target \($0)" } ?? "")
+        .accessibilityHint(card.isLit ? "Double tap to score." : "This card is not active.")
     }
 }
 
@@ -650,7 +718,7 @@ struct SettingsSheet: View {
         NavigationStack {
             ZStack {
                 LinearGradient(
-                    colors: [Color.black, Color.indigo.opacity(0.7), Color.blue.opacity(0.5)],
+                    colors: [AppTheme.canvas, AppTheme.primary.opacity(0.10), AppTheme.mint.opacity(0.10)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -659,7 +727,7 @@ struct SettingsSheet: View {
                 VStack(alignment: .leading, spacing: 22) {
                     Text("ROUND LENGTH")
                         .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white.opacity(0.65))
+                        .foregroundColor(AppTheme.ink.opacity(0.65))
                         .tracking(2.5)
 
                     HStack(spacing: 10) {
@@ -678,7 +746,7 @@ struct SettingsSheet: View {
                                         .tracking(1.5)
                                         .opacity(0.75)
                                 }
-                                .foregroundColor(.white)
+                                .foregroundColor(AppTheme.ink)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 20)
                                 .background(
@@ -687,7 +755,7 @@ struct SettingsSheet: View {
                                             roundLength == value
                                                 ? AnyShapeStyle(
                                                     LinearGradient(
-                                                        colors: [.blue, .purple],
+                                                        colors: [AppTheme.primary, AppTheme.primary],
                                                         startPoint: .topLeading,
                                                         endPoint: .bottomTrailing
                                                     )
@@ -698,12 +766,12 @@ struct SettingsSheet: View {
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 18)
                                         .stroke(
-                                            roundLength == value ? Color.white.opacity(0.5) : Color.white.opacity(0.15),
+                                            roundLength == value ? AppTheme.secondaryInk.opacity(0.5) : AppTheme.secondaryInk.opacity(0.15),
                                             lineWidth: 1
                                         )
                                 )
                                 .shadow(
-                                    color: roundLength == value ? .blue.opacity(0.6) : .clear,
+                                    color: roundLength == value ? AppTheme.primary.opacity(0.6) : .clear,
                                     radius: 14
                                 )
                             }
@@ -713,7 +781,7 @@ struct SettingsSheet: View {
 
                     Text("Round length affects how each level's window of time stretches across the game.")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(AppTheme.ink.opacity(0.6))
                         .padding(.top, 4)
 
                     Spacer()
@@ -722,7 +790,6 @@ struct SettingsSheet: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
@@ -730,7 +797,7 @@ struct SettingsSheet: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
     }
 }
 
@@ -738,7 +805,7 @@ struct SettingsSheet: View {
     NavigationStack {
         LightItUpView()
     }
-    .preferredColorScheme(.dark)
+    .preferredColorScheme(.light)
 }
 
 #Preview("Settings") {

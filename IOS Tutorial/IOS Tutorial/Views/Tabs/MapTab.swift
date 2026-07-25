@@ -39,8 +39,15 @@ struct MapTab: View {
                 if locatedSessions.isEmpty {
                     emptyOverlay
                 }
+
+                VStack {
+                    Spacer()
+                    mapStatus
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
             }
-            .navigationTitle("Map")
+            .navigationTitle("Play map")
             .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
@@ -59,7 +66,7 @@ struct MapTab: View {
         VStack(spacing: 10) {
             Image(systemName: emptyStateIcon)
                 .font(.system(size: 34, weight: .heavy))
-                .foregroundColor(.cyan)
+                .foregroundColor(AppTheme.primary)
 
             Text(emptyStateTitle)
                 .font(.system(size: 18, weight: .heavy, design: .rounded))
@@ -71,12 +78,32 @@ struct MapTab: View {
                 .multilineTextAlignment(.center)
         }
         .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-        )
+        .appSurface(cornerRadius: 20)
         .padding(.horizontal, 40)
         .allowsHitTesting(false)
+    }
+
+    private var mapStatus: some View {
+        HStack(spacing: 12) {
+            Image(systemName: locatedSessions.isEmpty ? "location.circle" : "mappin.and.ellipse")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(AppTheme.primary)
+                .frame(width: 38, height: 38)
+                .background(AppTheme.primary.opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(locatedSessions.isEmpty ? "Your play map" : "\(locatedSessions.count) saved play \(locatedSessions.count == 1 ? "spot" : "spots")")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(AppTheme.ink)
+                Text(locatedSessions.isEmpty ? "Finish a game to leave your first pin." : "Every completed round with a location is saved here.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(AppTheme.secondaryInk)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: 560, alignment: .leading)
+        .appSurface(cornerRadius: 18)
     }
 
     private var emptyStateIcon: String {
@@ -171,5 +198,4 @@ private extension GameSession {
 
 #Preview {
     MapTab()
-        .preferredColorScheme(.dark)
 }

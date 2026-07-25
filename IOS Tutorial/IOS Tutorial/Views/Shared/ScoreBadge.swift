@@ -9,7 +9,7 @@ struct ScoreBadge: View {
         VStack(spacing: 3) {
             Text(title)
                 .font(.system(size: 9, weight: .heavy, design: .rounded))
-                .foregroundColor(.white.opacity(0.58))
+                .foregroundColor(AppTheme.secondaryInk)
                 .tracking(1.2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
@@ -22,14 +22,7 @@ struct ScoreBadge: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(color.opacity(0.35), lineWidth: 1)
-                )
-        )
+        .appSurface(cornerRadius: 14)
     }
 }
 
@@ -40,5 +33,5 @@ struct ScoreBadge: View {
         ScoreBadge(title: "BEST", value: "112", color: .orange)
     }
     .padding()
-    .background(Color.black)
+    .background(AppTheme.canvas)
 }

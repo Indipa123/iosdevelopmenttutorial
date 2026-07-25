@@ -5,11 +5,14 @@ struct HomeTab: View {
     @AppStorage("highScore") private var tapFrenzyHighScore = 0
     @AppStorage("lightItUpHighScore") private var lightItUpHighScore = 0
     @AppStorage("quizRushHighScore") private var quizRushHighScore = 0
+    @AppStorage("playerDisplayName") private var playerDisplayName = "Player One"
+    @AppStorage("playerAvatar") private var playerAvatar = PlayerAvatar.bolt.rawValue
+    @AppStorage("playerPhotoData") private var playerPhotoData = Data()
+    @AppStorage("playerUsesCustomPhoto") private var playerUsesCustomPhoto = false
 
     @Environment(\.horizontalSizeClass) private var hSize
     @Environment(\.verticalSizeClass) private var vSize
 
-    @State private var titleGlow = false
     @State private var appear = false
 
     private var isRegularWidth: Bool { hSize == .regular }
@@ -17,9 +20,9 @@ struct HomeTab: View {
     private var useTwoColumnGames: Bool { isRegularWidth || isCompactHeight }
 
     private var contentMaxWidth: CGFloat { isRegularWidth ? 860 : 360 }
-    private var titleSize: CGFloat { isRegularWidth ? 78 : 50 }
-    private var titleTracking: CGFloat { isRegularWidth ? 10 : 5 }
-    private var taglineSize: CGFloat { isRegularWidth ? 16 : 13 }
+    private var titleSize: CGFloat { isRegularWidth ? 62 : 42 }
+    private var titleTracking: CGFloat { isRegularWidth ? 2 : 1 }
+    private var taglineSize: CGFloat { isRegularWidth ? 17 : 14 }
     private var previewHeight: CGFloat { isRegularWidth ? 150 : 120 }
     private var sectionSpacing: CGFloat { isRegularWidth ? 26 : 18 }
     private var outerHorizontalPadding: CGFloat { isRegularWidth ? 32 : 18 }
@@ -31,8 +34,7 @@ struct HomeTab: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)
         }
-        .preferredColorScheme(.dark)
-        .tint(.cyan)
+        .tint(AppTheme.primary)
     }
 
     private var homeContent: some View {
@@ -49,11 +51,11 @@ struct HomeTab: View {
                             .offset(y: appear ? 0 : -16)
                             .padding(.top, topPadding)
 
-                        statsSummary
+                        bestScoresPanel
                             .opacity(appear ? 1 : 0)
                             .offset(y: appear ? 0 : -8)
 
-                        sectionLabel("GAMES")
+                        sectionLabel("CHOOSE A GAME")
                             .opacity(appear ? 1 : 0)
                             .padding(.top, 2)
 
@@ -61,10 +63,12 @@ struct HomeTab: View {
                             .opacity(appear ? 1 : 0)
                             .offset(y: appear ? 0 : 26)
 
-                        footerHint
-                            .opacity(appear ? 0.65 : 0)
-                            .padding(.top, 6)
-                            .padding(.bottom, 18)
+                        Text("Your next high score is one tap away.")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundColor(AppTheme.secondaryInk)
+                            .opacity(appear ? 1 : 0)
+                            .padding(.top, 2)
+                            .padding(.bottom, 110)
                     }
                     .frame(width: contentWidth, alignment: .center)
                     .clipped()
@@ -83,77 +87,124 @@ struct HomeTab: View {
             withAnimation(.spring(response: 0.7, dampingFraction: 0.75)) {
                 appear = true
             }
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
-                titleGlow = true
-            }
         }
     }
 
     private var header: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 7, height: 7)
-                    .shadow(color: .green, radius: 5)
-                Text("READY")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .foregroundColor(.white.opacity(0.85))
-                    .tracking(2)
+        NavigationLink {
+            TapFrenzyView()
+        } label: {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    HStack(spacing: 9) {
+                        PlayerAvatarImage(
+                            avatarRawValue: playerAvatar,
+                            photoData: playerPhotoData,
+                            usesCustomPhoto: playerUsesCustomPhoto,
+                            size: 32
+                        )
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("TODAY'S QUICK PLAY")
+                                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                                .tracking(1.1)
+                                .foregroundColor(AppTheme.mint)
+                            Text("Hey, \(playerDisplayName.isEmpty ? "Player" : playerDisplayName)")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundColor(AppTheme.secondaryInk)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(AppTheme.primary)
+                        .frame(width: 32, height: 32)
+                        .background(AppTheme.primary.opacity(0.10), in: Circle())
+                }
+
+                Text("Play your way")
+                    .font(.system(size: titleSize, weight: .black, design: .rounded))
+                    .foregroundStyle(AppTheme.ink)
+                    .tracking(titleTracking)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
+
+                HStack(spacing: 10) {
+                    Image(systemName: "bolt.fill")
+                        .foregroundColor(AppTheme.mint)
+                    Text("Start with a 10-second Tap Frenzy warm-up.")
+                        .font(.system(size: taglineSize, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppTheme.secondaryInk)
+                    Spacer(minLength: 0)
+                }
             }
-
-            Text("ARCADE")
-                .font(.system(size: titleSize, weight: .black, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.white, .cyan, .blue],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .shadow(color: .cyan.opacity(titleGlow ? 0.9 : 0.4), radius: titleGlow ? 22 : 12)
-                .tracking(titleTracking)
-                .lineLimit(1)
-                .minimumScaleFactor(0.4)
-
-            Text("Three games. One arena.")
-                .font(.system(size: taglineSize, weight: .semibold, design: .rounded))
-                .foregroundColor(.white.opacity(0.7))
-                .tracking(1.5)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                LinearGradient(
+                    colors: [AppTheme.surface, AppTheme.mint.opacity(0.10), AppTheme.primary.opacity(0.06)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(AppTheme.primary.opacity(0.15), lineWidth: 1)
+            )
+            .shadow(color: AppTheme.primary.opacity(0.08), radius: 20, y: 8)
         }
-        .frame(maxWidth: .infinity)
+        .buttonStyle(ModeCardButtonStyle())
     }
 
-    private var statsSummary: some View {
-        let columns: [GridItem] = useTwoColumnGames
-            ? [GridItem(.flexible(minimum: 0), spacing: 10), GridItem(.flexible(minimum: 0), spacing: 10)]
-            : [GridItem(.flexible(minimum: 0))]
+    private var bestScoresPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("BEST SCORES")
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .foregroundColor(AppTheme.secondaryInk)
+                        .tracking(2)
+                    Text("Personal records")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppTheme.ink)
+                }
 
-        return LazyVGrid(columns: columns, spacing: 10) {
-            SummaryStat(
-                label: "TAP FRENZY",
-                value: "\(tapFrenzyHighScore)",
-                icon: "bolt.fill",
-                color: .green
-            )
+                Spacer()
 
-            SummaryStat(
-                label: "LIGHT IT UP",
-                value: "\(lightItUpHighScore)",
-                icon: "square.grid.3x3.fill",
-                color: .blue
-            )
+                Image(systemName: "trophy.fill")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(AppTheme.amber)
+                    .frame(width: 32, height: 32)
+                    .background(AppTheme.amber.opacity(0.12), in: Circle())
+            }
 
-            SummaryStat(
-                label: "QUIZ RUSH",
-                value: "\(quizRushHighScore)",
-                icon: "questionmark.circle.fill",
-                color: .orange
-            )
+            HStack(spacing: 8) {
+                BestScoreTile(
+                    title: "FRENZY",
+                    value: tapFrenzyHighScore,
+                    icon: "bolt.fill",
+                    color: AppTheme.mint
+                )
+
+                BestScoreTile(
+                    title: "LIGHT UP",
+                    value: lightItUpHighScore,
+                    icon: "square.grid.3x3.fill",
+                    color: AppTheme.primary
+                )
+
+                BestScoreTile(
+                    title: "QUIZ",
+                    value: quizRushHighScore,
+                    icon: "questionmark.circle.fill",
+                    color: AppTheme.coral
+                )
+            }
         }
-        .frame(maxWidth: .infinity)
+        .padding(16)
+        .appSurface(cornerRadius: 22)
     }
 
     private var gameCardsLayout: some View {
@@ -166,14 +217,12 @@ struct HomeTab: View {
                 TapFrenzyView()
             } label: {
                 GameFeatureCard(
-                    title: "TAP FRENZY",
-                    tagline: "Tap fast. Beat the clock.",
-                    description: "10-second rush. Stack combos.",
-                    accent: .green,
-                    gradient: [.green, .mint, .cyan],
-                    highScore: tapFrenzyHighScore,
-                    previewHeight: previewHeight,
-                    preview: AnyView(TapFrenzyPreview())
+                    icon: "bolt.fill",
+                    title: "Tap Frenzy",
+                    subtitle: "A 10-second speed round. Build your combo.",
+                    detail: "QUICK PLAY",
+                    accent: AppTheme.mint,
+                    highScore: tapFrenzyHighScore
                 )
             }
             .buttonStyle(ModeCardButtonStyle())
@@ -182,14 +231,12 @@ struct HomeTab: View {
                 LightItUpView()
             } label: {
                 GameFeatureCard(
-                    title: "LIGHT IT UP",
-                    tagline: "Tap the lit card.",
-                    description: "Grid grows. Window shrinks.",
-                    accent: .blue,
-                    gradient: [.blue, .indigo, .purple],
-                    highScore: lightItUpHighScore,
-                    previewHeight: previewHeight,
-                    preview: AnyView(LightItUpPreview())
+                    icon: "square.grid.3x3.fill",
+                    title: "Light It Up",
+                    subtitle: "Spot the active tile before the clock runs out.",
+                    detail: "FOCUS",
+                    accent: AppTheme.primary,
+                    highScore: lightItUpHighScore
                 )
             }
             .buttonStyle(ModeCardButtonStyle())
@@ -198,14 +245,12 @@ struct HomeTab: View {
                 QuizRushView()
             } label: {
                 GameFeatureCard(
-                    title: "QUIZ RUSH",
-                    tagline: "Live trivia challenge.",
-                    description: "10 questions. Streak bonuses.",
-                    accent: .orange,
-                    gradient: [.orange, .pink, .purple],
-                    highScore: quizRushHighScore,
-                    previewHeight: previewHeight,
-                    preview: AnyView(QuizRushPreview())
+                    icon: "questionmark.circle.fill",
+                    title: "Quiz Rush",
+                    subtitle: "Ten trivia questions. Keep your streak alive.",
+                    detail: "TRIVIA",
+                    accent: AppTheme.coral,
+                    highScore: quizRushHighScore
                 )
             }
             .buttonStyle(ModeCardButtonStyle())
@@ -218,11 +263,11 @@ struct HomeTab: View {
         HStack(spacing: 10) {
             Text(text)
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .foregroundColor(.white.opacity(0.55))
+                .foregroundColor(AppTheme.secondaryInk)
                 .tracking(3)
 
             Rectangle()
-                .fill(Color.white.opacity(0.15))
+                .fill(AppTheme.line)
                 .frame(height: 1)
         }
         .frame(maxWidth: .infinity)
@@ -232,185 +277,123 @@ struct HomeTab: View {
         VStack(spacing: 5) {
             Image(systemName: "hand.tap.fill")
                 .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.white.opacity(0.55))
+                .foregroundColor(AppTheme.secondaryInk)
             Text("TAP A GAME TO PLAY")
                 .font(.system(size: 10, weight: .heavy, design: .rounded))
-                .foregroundColor(.white.opacity(0.55))
+                .foregroundColor(AppTheme.secondaryInk)
                 .tracking(3)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-struct SummaryStat: View {
-    let label: String
-    let value: String
+struct BestScoreTile: View {
+    let title: String
+    let value: Int
     let icon: String
     let color: Color
 
     var body: some View {
-        HStack(spacing: 10) {
+        VStack(spacing: 7) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .heavy))
                 .foregroundColor(color)
-                .shadow(color: color.opacity(0.7), radius: 5)
-                .frame(width: 26, height: 26)
+                .frame(width: 28, height: 28)
                 .background(
                     Circle().fill(color.opacity(0.15))
                 )
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(label)
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.55))
-                    .tracking(1.2)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                HStack(spacing: 3) {
-                    Image(systemName: "trophy.fill")
-                        .font(.system(size: 9, weight: .bold))
-                    Text(value)
-                        .font(.system(size: 15, weight: .heavy, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                }
-                .foregroundColor(color)
-            }
-            Spacer(minLength: 0)
+            Text(title)
+                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                .foregroundColor(AppTheme.secondaryInk)
+                .tracking(0.8)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+
+            Text(value == 0 ? "—" : value.formatted())
+                .font(.system(size: 21, weight: .heavy, design: .rounded))
+                .foregroundColor(value == 0 ? AppTheme.secondaryInk.opacity(0.45) : AppTheme.ink)
+                .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 11)
+        .padding(.horizontal, 5)
         .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(color.opacity(0.075))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(color.opacity(0.35), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(color.opacity(0.18), lineWidth: 1)
                 )
         )
     }
 }
 
 struct GameFeatureCard: View {
+    let icon: String
     let title: String
-    let tagline: String
-    let description: String
+    let subtitle: String
+    let detail: String
     let accent: Color
-    let gradient: [Color]
     let highScore: Int
-    let previewHeight: CGFloat
-    let preview: AnyView
 
     var body: some View {
-        VStack(spacing: 0) {
+        HStack(spacing: 14) {
             ZStack {
-                LinearGradient(
-                    colors: gradient.map { $0.opacity(0.35) },
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                preview
-            }
-            .frame(height: previewHeight)
-            .frame(maxWidth: .infinity)
-            .clipped()
-            .clipShape(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 22,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 22
-                )
-            )
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(title)
-                            .font(.system(size: 20, weight: .heavy, design: .rounded))
-                            .foregroundColor(.white)
-                            .tracking(1.2)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-
-                        Text(tagline)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundColor(accent)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    HStack(spacing: 4) {
-                        Image(systemName: "trophy.fill")
-                            .font(.system(size: 9, weight: .bold))
-                        Text("\(highScore)")
-                            .font(.system(size: 12, weight: .heavy, design: .rounded))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(accent.opacity(0.12))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(accent.opacity(0.20), lineWidth: 1)
+                    .padding(7)
+                Image(systemName: icon)
+                    .font(.system(size: 29, weight: .bold))
                     .foregroundColor(accent)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(accent.opacity(0.18))
-                            .overlay(
-                                Capsule().stroke(accent.opacity(0.5), lineWidth: 1)
-                            )
-                    )
-                }
-
-                Text(description)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.7))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-
-                HStack(spacing: 6) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 10, weight: .heavy))
-                    Text("PLAY NOW")
-                        .font(.system(size: 11, weight: .heavy, design: .rounded))
-                        .tracking(2)
-
-                    Spacer()
-
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 13, weight: .heavy))
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(
-                    LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 11))
-                .shadow(color: accent.opacity(0.65), radius: 10)
-                .padding(.top, 2)
             }
-            .padding(14)
+            .frame(width: 74, height: 84)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 7) {
+                    Text(detail)
+                        .font(.system(size: 9, weight: .heavy, design: .rounded))
+                        .foregroundColor(accent)
+                        .tracking(1.2)
+                    Circle().fill(accent.opacity(0.55)).frame(width: 3, height: 3)
+                    Text("BEST \(highScore)")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundColor(AppTheme.secondaryInk)
+                }
+
+                Text(title)
+                    .font(.system(size: 19, weight: .heavy, design: .rounded))
+                    .foregroundColor(AppTheme.ink)
+                    .lineLimit(1)
+
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(AppTheme.secondaryInk)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "arrow.right")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(accent)
+                .frame(width: 34, height: 34)
+                .background(accent.opacity(0.12), in: Circle())
         }
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 22)
-                .fill(.ultraThinMaterial)
-        )
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 112)
+        .appSurface(cornerRadius: 22)
         .overlay(
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(
-                    LinearGradient(
-                        colors: [accent.opacity(0.55), .white.opacity(0.08)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(accent.opacity(0.20), lineWidth: 1)
         )
-        .shadow(color: accent.opacity(0.3), radius: 18, y: 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(subtitle). Best score \(highScore).")
+        .accessibilityHint("Double tap to play.")
     }
 }
 
@@ -426,7 +409,7 @@ struct TapFrenzyPreview: View {
             ZStack {
                 ForEach(0..<3) { i in
                     Circle()
-                        .stroke(Color.green.opacity(0.55), lineWidth: 1.5)
+                        .stroke(AppTheme.mint.opacity(0.28), lineWidth: 1.5)
                         .frame(width: circleSize, height: circleSize)
                         .scaleEffect(ringScale + CGFloat(i) * 0.12)
                         .opacity(ringOpacity - Double(i) * 0.18)
@@ -435,14 +418,14 @@ struct TapFrenzyPreview: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [.green, .green.opacity(0.6)],
+                            colors: [AppTheme.mint.opacity(0.92), AppTheme.mint.opacity(0.72)],
                             center: .center,
                             startRadius: 4,
                             endRadius: circleSize * 0.6
                         )
                     )
                     .frame(width: circleSize, height: circleSize)
-                    .shadow(color: .green.opacity(0.75), radius: circleSize * 0.2)
+                    .shadow(color: AppTheme.shadow.opacity(0.12), radius: 12, y: 6)
                     .scaleEffect(pulse)
 
                 Text("TAP")

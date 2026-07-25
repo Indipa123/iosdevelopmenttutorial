@@ -25,9 +25,9 @@ enum GameMode: String, Codable, CaseIterable, Identifiable {
 
     var accent: Color {
         switch self {
-        case .tapFrenzy: return .green
-        case .lightItUp: return .blue
-        case .quizRush: return .orange
+        case .tapFrenzy: return AppTheme.mint
+        case .lightItUp: return AppTheme.primary
+        case .quizRush: return AppTheme.coral
         }
     }
 

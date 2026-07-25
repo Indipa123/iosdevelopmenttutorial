@@ -38,7 +38,7 @@ struct TapFrenzyView: View {
 
     var body: some View {
         ZStack {
-            WallpaperBackground()
+            GameBackdrop(accent: AppTheme.mint)
 
             GeometryReader { proxy in
                 let contentWidth = max(0, min(proxy.size.width - outerHorizontalPadding * 2, contentMaxWidth))
@@ -74,7 +74,6 @@ struct TapFrenzyView: View {
         .navigationTitle("Tap Frenzy")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .onAppear {
             startContinuousAnimations()
         }
@@ -89,72 +88,102 @@ struct TapFrenzyView: View {
     }
 
     var gameView: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 16) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("10 SECOND SPRINT", systemImage: "bolt.fill")
+                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .foregroundColor(AppTheme.mint)
+                        .tracking(1.3)
 
-            Text("TAP FRENZY")
-                .font(.system(size: 38, weight: .heavy, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(colors: [.white, .cyan], startPoint: .top, endPoint: .bottom)
-                )
-                .shadow(color: .cyan.opacity(0.7), radius: 12)
-                .tracking(2)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            HStack(spacing: 12) {
-                statCard(title: "SCORE", value: "\(viewModel.score)", color: .yellow, scale: scoreBump)
-
-                statCard(title: "TIME", value: "\(viewModel.timeRemaining)", color: viewModel.timeRemaining <= 3 ? .red : .white, scale: timerPulseScale)
-            }
-
-            Text("COMBO  ×\(viewModel.comboMultiplier)")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 8)
-                .background(
-                    Capsule()
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            Capsule().stroke(viewModel.comboMultiplier >= 3 ? Color.orange : Color.white.opacity(0.3), lineWidth: 2)
-                        )
-                )
-                .scaleEffect(comboBump)
-                .shadow(color: viewModel.comboMultiplier >= 3 ? .orange.opacity(0.8) : .clear, radius: 12)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .overlay(alignment: .trailing) {
-                    if viewModel.comboMultiplier >= 3 {
-                        Text("🔥")
-                            .font(.title2)
-                            .offset(x: 26)
-                    }
+                    Text("Tap Frenzy")
+                        .font(.system(size: 31, weight: .black, design: .rounded))
+                        .foregroundColor(AppTheme.ink)
                 }
 
-            Text(viewModel.isBonusColour ? "GREEN = BONUS" : "GREY = PENALTY")
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundColor(.white.opacity(0.85))
-                .tracking(1.5)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                Spacer()
 
-            tapButton
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text("BEST")
+                        .font(.system(size: 9, weight: .heavy, design: .rounded))
+                        .foregroundColor(AppTheme.secondaryInk)
+                        .tracking(1.4)
+                    Text(viewModel.highScore.formatted())
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .foregroundColor(AppTheme.primary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(AppTheme.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
 
-            Text("HIGH SCORE: \(viewModel.highScore)")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundColor(.white.opacity(0.9))
-                .tracking(1)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+            HStack(spacing: 10) {
+                statCard(title: "SCORE", value: "\(viewModel.score)", color: AppTheme.amber, scale: scoreBump)
+                statCard(title: "SECONDS", value: "\(viewModel.timeRemaining)", color: viewModel.timeRemaining <= 3 ? .red : AppTheme.ink, scale: timerPulseScale)
+            }
+
+            HStack(spacing: 10) {
+                Label("COMBO ×\(viewModel.comboMultiplier)", systemImage: viewModel.comboMultiplier >= 3 ? "flame.fill" : "bolt.circle.fill")
+                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .foregroundColor(viewModel.comboMultiplier >= 3 ? AppTheme.coral : AppTheme.ink)
+                    .scaleEffect(comboBump)
+
+                Spacer()
+
+                Text(viewModel.isBonusColour ? "TARGET LIVE" : "TARGET PAUSED")
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .foregroundColor(viewModel.isBonusColour ? AppTheme.mint : AppTheme.secondaryInk)
+                    .tracking(1.1)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(AppTheme.surface.opacity(0.80), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+            tapStage
+
+            Label(
+                viewModel.isBonusColour ? "Tap the mint target to score" : "Wait for the target to turn mint",
+                systemImage: viewModel.isBonusColour ? "hand.tap.fill" : "pause.circle.fill"
+            )
+            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .foregroundColor(AppTheme.secondaryInk)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(AppTheme.surface.opacity(0.72), in: Capsule())
         }
-        .padding()
+        .padding(.horizontal, 2)
+        .padding(.vertical, 16)
+    }
+
+    private var tapStage: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(AppTheme.surface.opacity(0.82))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .stroke(viewModel.isBonusColour ? AppTheme.mint.opacity(0.28) : AppTheme.line, lineWidth: 1)
+                }
+
+            VStack(spacing: 8) {
+                Text(viewModel.isBonusColour ? "GO" : "HOLD")
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .foregroundColor(viewModel.isBonusColour ? AppTheme.mint : AppTheme.secondaryInk)
+                    .tracking(3)
+                    .padding(.top, 18)
+
+                tapButton
+                    .frame(height: 230)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 284)
+        .shadow(color: AppTheme.shadow.opacity(0.08), radius: 18, y: 8)
     }
 
     func statCard(title: String, value: String, color: Color, scale: CGFloat) -> some View {
         VStack(spacing: 4) {
             Text(title)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppTheme.ink.opacity(0.7))
                 .tracking(1.5)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -171,14 +200,7 @@ struct TapFrenzyView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .appSurface(cornerRadius: 16)
     }
 
     var tapButton: some View {
@@ -186,10 +208,10 @@ struct TapFrenzyView: View {
             ForEach(0..<3) { i in
                 Circle()
                     .stroke(
-                        viewModel.isBonusColour ? Color.green.opacity(0.5) : Color.gray.opacity(0.4),
+                        viewModel.isBonusColour ? AppTheme.mint.opacity(0.26) : Color.gray.opacity(0.3),
                         lineWidth: 3
                     )
-                    .frame(width: 220, height: 220)
+                    .frame(width: 190, height: 190)
                     .scaleEffect(pulseRingScale + CGFloat(i) * 0.15)
                     .opacity(pulseRingOpacity - Double(i) * 0.2)
             }
@@ -198,29 +220,32 @@ struct TapFrenzyView: View {
                 .fill(
                     RadialGradient(
                         colors: viewModel.isBonusColour
-                            ? [.green, .green.opacity(0.7)]
+                            ? [AppTheme.mint, AppTheme.mint.opacity(0.7)]
                             : [.gray, .gray.opacity(0.6)],
                         center: .center,
                         startRadius: 10,
                         endRadius: 130
                     )
                 )
-                .frame(width: 220, height: 220)
-                .shadow(color: viewModel.isBonusColour ? .green.opacity(0.9) : .gray.opacity(0.6), radius: 30)
+                .frame(width: 190, height: 190)
+                .shadow(color: AppTheme.shadow.opacity(viewModel.isBonusColour ? 0.14 : 0.10), radius: 16, y: 8)
                 .scaleEffect(auraPulse)
 
             Button {
                 tapButtonPressed()
             } label: {
                 Text("TAP")
-                    .font(.system(size: 50, weight: .heavy, design: .rounded))
+                    .font(.system(size: 44, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.4), radius: 6)
-                    .frame(width: 220, height: 220)
+                    .shadow(color: AppTheme.ink.opacity(0.35), radius: 4)
+                    .frame(width: 190, height: 190)
                     .contentShape(Circle())
             }
             .scaleEffect(tapScale)
             .offset(x: penaltyShake)
+            .accessibilityLabel(viewModel.isBonusColour ? "Bonus tap target" : "Penalty tap target")
+            .accessibilityValue("Score \(viewModel.score), combo \(viewModel.comboMultiplier), \(viewModel.timeRemaining) seconds remaining")
+            .accessibilityHint(viewModel.isBonusColour ? "Double tap to earn points." : "Do not tap until the target turns green.")
 
             ForEach(floatingScores) { item in
                 FloatingScoreText(item: item)
@@ -234,20 +259,20 @@ struct TapFrenzyView: View {
             Text("GAME OVER")
                 .font(.system(size: 44, weight: .heavy, design: .rounded))
                 .foregroundStyle(
-                    LinearGradient(colors: [.white, .red.opacity(0.8)], startPoint: .top, endPoint: .bottom)
+                    LinearGradient(colors: [AppTheme.ink, .red.opacity(0.8)], startPoint: .top, endPoint: .bottom)
                 )
                 .shadow(color: .red.opacity(0.6), radius: 14)
                 .tracking(2)
 
             Text("FINAL SCORE")
                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(.white.opacity(0.75))
+                .foregroundColor(AppTheme.ink.opacity(0.75))
                 .tracking(2)
 
             Text("\(displayedFinalScore)")
                 .font(.system(size: 90, weight: .heavy, design: .rounded))
-                .foregroundColor(.yellow)
-                .shadow(color: .yellow.opacity(0.8), radius: 18)
+                .foregroundColor(AppTheme.amber)
+                .shadow(color: AppTheme.amber.opacity(0.8), radius: 18)
                 .contentTransition(.numericText())
 
             if viewModel.isNewHighScore {
@@ -256,14 +281,14 @@ struct TapFrenzyView: View {
                         .font(.system(size: 84))
                         .rotationEffect(.degrees(trophyRotation))
                         .scaleEffect(celebrateScale)
-                        .shadow(color: .yellow.opacity(0.9), radius: 22)
+                        .shadow(color: AppTheme.amber.opacity(0.9), radius: 22)
 
                     Text("NEW HIGH SCORE!")
                         .font(.system(size: 22, weight: .heavy, design: .rounded))
                         .foregroundStyle(
-                            LinearGradient(colors: [.green, .yellow], startPoint: .leading, endPoint: .trailing)
+                            LinearGradient(colors: [AppTheme.mint, AppTheme.amber], startPoint: .leading, endPoint: .trailing)
                         )
-                        .shadow(color: .green.opacity(0.7), radius: 10)
+                        .shadow(color: AppTheme.mint.opacity(0.7), radius: 10)
                         .scaleEffect(celebrateScale)
                         .tracking(1.5)
                 }
@@ -271,7 +296,7 @@ struct TapFrenzyView: View {
 
             Text("HIGH SCORE: \(viewModel.highScore)")
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundColor(AppTheme.ink)
                 .tracking(1)
 
             Button {
@@ -279,18 +304,19 @@ struct TapFrenzyView: View {
             } label: {
                 Text("PLAY AGAIN")
                     .font(.system(size: 22, weight: .heavy, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppTheme.ink)
                     .tracking(1.5)
                     .padding()
                     .frame(width: 240)
                     .background(
-                        LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)
+                        LinearGradient(colors: [AppTheme.primary, AppTheme.primary], startPoint: .leading, endPoint: .trailing)
                     )
                     .cornerRadius(18)
-                    .shadow(color: .blue.opacity(0.7), radius: 14)
+                    .shadow(color: AppTheme.primary.opacity(0.7), radius: 14)
             }
         }
-        .padding()
+        .padding(26)
+        .appSurface(cornerRadius: 30)
     }
 
     func startContinuousAnimations() {
@@ -484,8 +510,8 @@ struct FloatingScoreText: View {
     var body: some View {
         Text(item.isBonus ? "+\(item.value)" : "\(item.value)")
             .font(.system(size: 36, weight: .heavy, design: .rounded))
-            .foregroundColor(item.isBonus ? .yellow : .red)
-            .shadow(color: (item.isBonus ? Color.yellow : Color.red).opacity(0.8), radius: 8)
+            .foregroundColor(item.isBonus ? AppTheme.amber : .red)
+            .shadow(color: (item.isBonus ? AppTheme.amber : Color.red).opacity(0.8), radius: 8)
             .offset(x: item.offsetX, y: animate ? -160 : -40)
             .opacity(animate ? 0 : 1)
             .scaleEffect(animate ? 1.4 : 0.6)
@@ -501,5 +527,5 @@ struct FloatingScoreText: View {
     NavigationStack {
         TapFrenzyView()
     }
-    .preferredColorScheme(.dark)
+    .preferredColorScheme(.light)
 }

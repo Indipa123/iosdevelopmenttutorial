@@ -1,236 +1,129 @@
 import SwiftUI
+import UIKit
 
+enum AppTheme {
+    static let ink = adaptive(light: .init(red: 0.10, green: 0.14, blue: 0.19, alpha: 1), dark: .init(red: 0.95, green: 0.97, blue: 1.00, alpha: 1))
+    static let secondaryInk = adaptive(light: .init(red: 0.36, green: 0.42, blue: 0.49, alpha: 1), dark: .init(red: 0.66, green: 0.71, blue: 0.79, alpha: 1))
+    static let canvas = adaptive(light: .init(red: 0.97, green: 0.98, blue: 1.00, alpha: 1), dark: .init(red: 0.05, green: 0.08, blue: 0.12, alpha: 1))
+    static let surface = adaptive(light: .white, dark: .init(red: 0.09, green: 0.13, blue: 0.19, alpha: 1))
+    static let line = adaptive(light: .init(red: 0.87, green: 0.89, blue: 0.87, alpha: 1), dark: .init(red: 0.17, green: 0.23, blue: 0.31, alpha: 1))
+    static let shadow = adaptive(light: .init(red: 0.10, green: 0.14, blue: 0.19, alpha: 1), dark: .black)
+    static let scrim = adaptive(light: .init(white: 0, alpha: 1), dark: .init(white: 0, alpha: 1))
+    static let primary = adaptive(light: .init(red: 0.16, green: 0.35, blue: 0.83, alpha: 1), dark: .init(red: 0.45, green: 0.64, blue: 1.00, alpha: 1))
+    static let mint = adaptive(light: .init(red: 0.05, green: 0.58, blue: 0.45, alpha: 1), dark: .init(red: 0.27, green: 0.82, blue: 0.64, alpha: 1))
+    static let coral = adaptive(light: .init(red: 0.87, green: 0.31, blue: 0.25, alpha: 1), dark: .init(red: 1.00, green: 0.55, blue: 0.50, alpha: 1))
+    static let amber = adaptive(light: .init(red: 0.82, green: 0.49, blue: 0.06, alpha: 1), dark: .init(red: 1.00, green: 0.73, blue: 0.32, alpha: 1))
+
+    private static func adaptive(light: UIColor, dark: UIColor) -> Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? dark : light
+        })
+    }
+}
+
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+    var icon: String {
+        switch self {
+        case .system: "circle.lefthalf.filled"
+        case .light: "sun.max.fill"
+        case .dark: "moon.fill"
+        }
+    }
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}
+
+/// A quiet, neutral background shared by every screen.
 struct WallpaperBackground: View {
-    @State private var gradientShift = false
-    @State private var orbDrift = false
-
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: gradientShift
-                    ? [.black, .indigo.opacity(0.9), .blue.opacity(0.8)]
-                    : [.black, .blue.opacity(0.85), .purple.opacity(0.8)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            .animation(.easeInOut(duration: 5).repeatForever(autoreverses: true), value: gradientShift)
-
-            glowOrbs
-                .allowsHitTesting(false)
-
-            NeonGrid()
-                .allowsHitTesting(false)
-
-            AmbientParticles()
-                .allowsHitTesting(false)
-        }
-        .onAppear {
-            gradientShift.toggle()
-            orbDrift.toggle()
-        }
-    }
-
-    private var glowOrbs: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [.purple.opacity(0.55), .clear],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 280
-                    )
-                )
-                .frame(width: 560, height: 560)
-                .blur(radius: 50)
-                .offset(x: orbDrift ? -120 : 140, y: -260)
-
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [.cyan.opacity(0.45), .clear],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 260
-                    )
-                )
-                .frame(width: 480, height: 480)
-                .blur(radius: 50)
-                .offset(x: orbDrift ? 180 : -180, y: 340)
-
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [.pink.opacity(0.35), .clear],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 200
-                    )
-                )
-                .frame(width: 360, height: 360)
-                .blur(radius: 40)
-                .offset(x: orbDrift ? 100 : -100, y: 0)
-        }
+        LinearGradient(
+            colors: [AppTheme.canvas, AppTheme.surface.opacity(0.86), AppTheme.canvas],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
         .ignoresSafeArea()
-        .animation(.easeInOut(duration: 9).repeatForever(autoreverses: true), value: orbDrift)
     }
 }
 
+/// A restrained game-specific colour wash. It is intentionally separate from
+/// the shared canvas so one game's accent never leaks into another game's UI.
+struct GameBackdrop: View {
+    let accent: Color
+
+    var body: some View {
+        ZStack {
+            WallpaperBackground()
+
+            GeometryReader { proxy in
+                Circle()
+                    .fill(accent.opacity(0.10))
+                    .frame(width: max(proxy.size.width, proxy.size.height) * 0.9)
+                    .blur(radius: 54)
+                    .offset(x: proxy.size.width * 0.28, y: -proxy.size.height * 0.30)
+
+                Circle()
+                    .fill(accent.opacity(0.045))
+                    .frame(width: max(proxy.size.width, proxy.size.height) * 0.7)
+                    .blur(radius: 42)
+                    .offset(x: -proxy.size.width * 0.38, y: proxy.size.height * 0.60)
+            }
+        }
+        .ignoresSafeArea()
+    }
+}
+
+/// Kept for the existing screen composition; intentionally subtle in the light theme.
 struct VignetteOverlay: View {
-    var body: some View {
-        RadialGradient(
-            colors: [.clear, .black.opacity(0.55)],
-            center: .center,
-            startRadius: 200,
-            endRadius: 540
-        )
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
-    }
+    var body: some View { Color.clear.ignoresSafeArea().allowsHitTesting(false) }
 }
 
-struct NeonGrid: View {
-    @State private var scroll: CGFloat = 0
+struct AppSurface: ViewModifier {
+    var cornerRadius: CGFloat = 20
 
-    var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
-            let horizonY = h * 0.62
-            let gridHeight = h - horizonY
-            let vanish = CGPoint(x: w / 2, y: horizonY)
-
-            ZStack {
-                Canvas { context, _ in
-                    let rows = 14
-                    for i in 0...rows {
-                        let raw = (CGFloat(i) + scroll).truncatingRemainder(dividingBy: CGFloat(rows))
-                        let t = raw / CGFloat(rows)
-                        let eased = pow(t, 2)
-                        let y = horizonY + gridHeight * eased
-                        let alpha = 0.55 * (1 - t) + 0.05
-                        var path = Path()
-                        path.move(to: CGPoint(x: 0, y: y))
-                        path.addLine(to: CGPoint(x: w, y: y))
-                        context.stroke(
-                            path,
-                            with: .color(.cyan.opacity(alpha)),
-                            lineWidth: 1.2
-                        )
-                    }
-
-                    let cols = 18
-                    for i in 0...cols {
-                        let x = CGFloat(i) / CGFloat(cols) * w
-                        var path = Path()
-                        path.move(to: vanish)
-                        path.addLine(to: CGPoint(x: x, y: h))
-                        context.stroke(
-                            path,
-                            with: .color(.cyan.opacity(0.35)),
-                            lineWidth: 1
-                        )
-                    }
-                }
-                .blur(radius: 0.4)
-                .shadow(color: .cyan.opacity(0.6), radius: 6)
-                .opacity(0.55)
-
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.5)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: gridHeight)
-                .offset(y: horizonY)
-                .blendMode(.multiply)
-            }
-            .ignoresSafeArea()
-            .onAppear {
-                withAnimation(.linear(duration: 4).repeatForever(autoreverses: false)) {
-                    scroll = 14
-                }
-            }
-        }
-        .ignoresSafeArea()
-    }
-}
-
-struct AmbientParticles: View {
-    private let particles: [AmbientParticle] = (0..<25).map { _ in
-        AmbientParticle(
-            x: CGFloat.random(in: 0...1),
-            y: CGFloat.random(in: 0...1),
-            size: CGFloat.random(in: 2...5),
-            duration: Double.random(in: 6...14),
-            delay: Double.random(in: 0...4)
-        )
-    }
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                ForEach(particles) { particle in
-                    AmbientDot(particle: particle, screen: geo.size)
-                }
-            }
-        }
-        .ignoresSafeArea()
-    }
-}
-
-struct AmbientParticle: Identifiable {
-    let id = UUID()
-    let x: CGFloat
-    let y: CGFloat
-    let size: CGFloat
-    let duration: Double
-    let delay: Double
-}
-
-struct AmbientDot: View {
-    let particle: AmbientParticle
-    let screen: CGSize
-    @State private var drift = false
-
-    var body: some View {
-        Circle()
-            .fill(Color.white.opacity(0.35))
-            .frame(width: particle.size, height: particle.size)
-            .blur(radius: 0.5)
-            .position(
-                x: particle.x * screen.width,
-                y: drift ? -20 : particle.y * screen.height + 40
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(AppTheme.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .stroke(AppTheme.line, lineWidth: 1)
+                    )
+                    .shadow(color: AppTheme.shadow.opacity(0.12), radius: 16, y: 6)
             )
-            .opacity(drift ? 0 : 0.8)
-            .onAppear {
-                withAnimation(
-                    .linear(duration: particle.duration)
-                        .repeatForever(autoreverses: false)
-                        .delay(particle.delay)
-                ) {
-                    drift = true
-                }
-            }
+    }
+}
+
+extension View {
+    func appSurface(cornerRadius: CGFloat = 20) -> some View {
+        modifier(AppSurface(cornerRadius: cornerRadius))
     }
 }
 
 struct ConfettiView: View {
-    private let colors: [Color] = [.red, .yellow, .green, .blue, .pink, .orange, .purple, .cyan]
+    private let colors: [Color] = [AppTheme.coral, AppTheme.amber, AppTheme.mint, AppTheme.primary]
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                ForEach(0..<90, id: \.self) { index in
+                ForEach(0..<70, id: \.self) { index in
                     ConfettiPiece(
                         color: colors[index % colors.count],
                         startX: CGFloat.random(in: 0...geo.size.width),
                         endY: geo.size.height + 60,
-                        delay: Double.random(in: 0...1.8),
-                        duration: Double.random(in: 2.5...4.5),
-                        spin: Double.random(in: 360...1080),
-                        size: CGFloat.random(in: 6...14)
+                        delay: Double.random(in: 0...1.3),
+                        duration: Double.random(in: 2.2...3.8),
+                        spin: Double.random(in: 360...900),
+                        size: CGFloat.random(in: 5...11)
                     )
                 }
             }
@@ -247,7 +140,6 @@ struct ConfettiPiece: View {
     let duration: Double
     let spin: Double
     let size: CGFloat
-
     @State private var animate = false
 
     var body: some View {
@@ -257,7 +149,6 @@ struct ConfettiPiece: View {
             .position(x: startX, y: animate ? endY : -40)
             .rotationEffect(.degrees(animate ? spin : 0))
             .opacity(animate ? 0 : 1)
-            .shadow(color: color.opacity(0.6), radius: 3)
             .animation(.easeIn(duration: duration).delay(delay), value: animate)
             .onAppear { animate = true }
     }

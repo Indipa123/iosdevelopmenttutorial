@@ -5,154 +5,210 @@ struct StatsTab: View {
     @Environment(\.horizontalSizeClass) private var hSize
 
     private var isRegularWidth: Bool { hSize == .regular }
-    private var contentMaxWidth: CGFloat { isRegularWidth ? 640 : 360 }
-    private var outerHorizontalPadding: CGFloat { isRegularWidth ? 32 : 24 }
-    private var compactColumns: [GridItem] {
-        [GridItem(.flexible(minimum: 0), spacing: 10)]
+    private var contentMaxWidth: CGFloat { isRegularWidth ? 720 : 420 }
+    private var horizontalPadding: CGFloat { isRegularWidth ? 32 : 20 }
+    private var summaryColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: isRegularWidth ? 3 : 2)
     }
-    private var twoColumns: [GridItem] {
-        [
-            GridItem(.flexible(minimum: 0), spacing: 10),
-            GridItem(.flexible(minimum: 0), spacing: 10)
-        ]
+    private var averageScore: Int {
+        guard viewModel.totalGames > 0 else { return 0 }
+        return viewModel.totalScore / viewModel.totalGames
+    }
+    private var topMode: GameMode? {
+        GameMode.allCases.max { viewModel.best(for: $0) < viewModel.best(for: $1) }
     }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 WallpaperBackground()
-
-                GeometryReader { proxy in
-                    let contentWidth = max(0, min(proxy.size.width - outerHorizontalPadding * 2, contentMaxWidth))
-
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 18) {
-                            if viewModel.sessions.isEmpty {
-                                emptyState
-                            } else {
-                                totals
-                                personalBests
-                                recentGames
-                            }
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 24) {
+                        header
+                        if viewModel.sessions.isEmpty {
+                            emptyState
+                        } else {
+                            overview
+                            bests
+                            recentGames
                         }
-                        .frame(width: contentWidth, alignment: .center)
-                        .padding(.horizontal, outerHorizontalPadding)
-                        .padding(.top, 10)
-                        .padding(.bottom, 110)
-                        .frame(maxWidth: .infinity, alignment: .center)
                     }
-                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .frame(maxWidth: contentMaxWidth, alignment: .leading)
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.top, 18)
+                    .padding(.bottom, 32)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 }
-
-                VignetteOverlay()
             }
-            .navigationTitle("Stats")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(AppTheme.canvas, for: .navigationBar)
         }
-        .onAppear {
-            viewModel.refresh()
+        .tint(AppTheme.primary)
+        .onAppear { viewModel.refresh() }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("YOUR PROGRESS")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundColor(AppTheme.primary)
+                .tracking(1.6)
+            Text("Game stats")
+                .font(.system(size: 34, weight: .black, design: .rounded))
+                .foregroundColor(AppTheme.ink)
+            Text(viewModel.sessions.isEmpty ? "Play a round to start building your history." : "A simple view of every round you’ve played.")
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundColor(AppTheme.secondaryInk)
         }
     }
 
     private var emptyState: some View {
         VStack(spacing: 14) {
-            Image(systemName: "chart.bar.fill")
-                .font(.system(size: 44, weight: .heavy))
-                .foregroundColor(.cyan)
-                .shadow(color: .cyan.opacity(0.7), radius: 12)
-
-            Text("NO GAMES YET")
-                .font(.system(size: 22, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
-                .tracking(2)
-
-            Text("Complete a game and its session will show up here.")
+            Image(systemName: "chart.bar.xaxis")
+                .font(.system(size: 36, weight: .semibold))
+                .foregroundColor(AppTheme.primary)
+                .frame(width: 72, height: 72)
+                .background(AppTheme.primary.opacity(0.10), in: Circle())
+            Text("Your scorecard is ready")
+                .font(.system(size: 21, weight: .bold, design: .rounded))
+                .foregroundColor(AppTheme.ink)
+            Text("Finish any game and your scores, personal bests, and recent rounds will appear here.")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppTheme.secondaryInk)
                 .multilineTextAlignment(.center)
+                .lineSpacing(3)
         }
-        .padding(28)
+        .padding(30)
         .frame(maxWidth: .infinity)
-        .background(panel)
-        .padding(.top, 60)
+        .appSurface(cornerRadius: 24)
+        .padding(.top, 28)
     }
 
-    private var totals: some View {
-        LazyVGrid(columns: twoColumns, spacing: 10) {
-            ScoreBadge(title: "GAMES PLAYED", value: "\(viewModel.totalGames)", color: .cyan)
-            ScoreBadge(title: "TOTAL SCORE", value: "\(viewModel.totalScore)", color: .yellow)
+    private var overview: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("AT A GLANCE")
+            LazyVGrid(columns: summaryColumns, spacing: 12) {
+                StatMetric(label: "Games played", value: "\(viewModel.totalGames)", icon: "gamecontroller.fill", color: AppTheme.primary)
+                StatMetric(label: "Total score", value: "\(viewModel.totalScore)", icon: "sum", color: AppTheme.mint)
+                StatMetric(label: "Average", value: "\(averageScore)", icon: "chart.line.uptrend.xyaxis", color: AppTheme.amber)
+            }
         }
     }
 
-    private var personalBests: some View {
-        LazyVGrid(columns: isRegularWidth ? twoColumns : compactColumns, spacing: 10) {
-            ForEach(GameMode.allCases) { mode in
-                ScoreBadge(
-                    title: mode.displayName.uppercased(),
-                    value: "\(viewModel.best(for: mode))",
-                    color: mode.accent
-                )
+    private var bests: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                sectionTitle("PERSONAL BESTS")
+                Spacer()
+                if let topMode {
+                    Text("Top: \(topMode.displayName)")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppTheme.secondaryInk)
+                }
             }
+            VStack(spacing: 0) {
+                ForEach(Array(GameMode.allCases.enumerated()), id: \.element.id) { index, mode in
+                    HStack(spacing: 14) {
+                        Image(systemName: mode.icon)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(mode.accent)
+                            .frame(width: 40, height: 40)
+                            .background(mode.accent.opacity(0.11), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(mode.displayName)
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundColor(AppTheme.ink)
+                            Text("\(viewModel.sessions(for: mode).count) rounds played")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundColor(AppTheme.secondaryInk)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("BEST")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .foregroundColor(AppTheme.secondaryInk)
+                                .tracking(1)
+                            Text("\(viewModel.best(for: mode))")
+                                .font(.system(size: 22, weight: .black, design: .rounded))
+                                .foregroundColor(mode.accent)
+                        }
+                    }
+                    .padding(.vertical, 13)
+                    if index < GameMode.allCases.count - 1 { Divider().overlay(AppTheme.line) }
+                }
+            }
+            .padding(.horizontal, 16)
+            .appSurface(cornerRadius: 20)
         }
     }
 
     private var recentGames: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("RECENT GAMES")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .foregroundColor(.white.opacity(0.55))
-                .tracking(3)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            ForEach(viewModel.recentSessions) { session in
-                HStack(spacing: 12) {
-                    Image(systemName: session.mode.icon)
-                        .font(.system(size: 14, weight: .heavy))
-                        .foregroundColor(session.mode.accent)
-                        .frame(width: 26, height: 26)
-                        .background(Circle().fill(session.mode.accent.opacity(0.15)))
-
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(session.mode.displayName)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                        Text(session.timestamp.formatted(date: .abbreviated, time: .shortened))
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundColor(.white.opacity(0.55))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("RECENT ACTIVITY")
+            VStack(spacing: 0) {
+                ForEach(Array(viewModel.recentSessions.enumerated()), id: \.element.id) { index, session in
+                    HStack(spacing: 13) {
+                        Image(systemName: session.mode.icon)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(session.mode.accent)
+                            .frame(width: 36, height: 36)
+                            .background(session.mode.accent.opacity(0.11), in: Circle())
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(session.mode.displayName)
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundColor(AppTheme.ink)
+                            Text(session.timestamp.formatted(date: .abbreviated, time: .shortened))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundColor(AppTheme.secondaryInk)
+                        }
+                        Spacer()
+                        Text("\(session.score)")
+                            .font(.system(size: 18, weight: .black, design: .rounded))
+                            .foregroundColor(AppTheme.ink)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Text("\(session.score)")
-                        .font(.system(size: 17, weight: .heavy, design: .rounded))
-                        .foregroundColor(session.mode.accent)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.65)
+                    .padding(.vertical, 12)
+                    if index < viewModel.recentSessions.count - 1 { Divider().overlay(AppTheme.line) }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(panel)
             }
+            .padding(.horizontal, 16)
+            .appSurface(cornerRadius: 20)
         }
     }
 
-    private var panel: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
-            )
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .bold, design: .rounded))
+            .foregroundColor(AppTheme.secondaryInk)
+            .tracking(1.6)
+    }
+}
+
+private struct StatMetric: View {
+    let label: String
+    let value: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(color)
+                .frame(width: 32, height: 32)
+                .background(color.opacity(0.11), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            Text(value)
+                .font(.system(size: 27, weight: .black, design: .rounded))
+                .foregroundColor(AppTheme.ink)
+            Text(label)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundColor(AppTheme.secondaryInk)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .appSurface(cornerRadius: 18)
     }
 }
 
 #Preview {
     StatsTab()
-        .preferredColorScheme(.dark)
 }

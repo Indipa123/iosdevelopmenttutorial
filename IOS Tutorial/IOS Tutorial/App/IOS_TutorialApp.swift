@@ -10,6 +10,12 @@ struct IOS_TutorialApp: App {
 }
 
 struct MainTabView: View {
+    @AppStorage("appAppearance") private var appAppearance = AppAppearance.system.rawValue
+
+    private var selectedAppearance: AppAppearance {
+        AppAppearance(rawValue: appAppearance) ?? .system
+    }
+
     var body: some View {
         TabView {
             HomeTab()
@@ -24,8 +30,10 @@ struct MainTabView: View {
             SettingsTab()
                 .tabItem { Label("Settings", systemImage: "gear") }
         }
-        .preferredColorScheme(.dark)
-        .tint(.cyan)
+        .preferredColorScheme(selectedAppearance.colorScheme)
+        .tint(AppTheme.primary)
+        .toolbarBackground(AppTheme.surface, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         .onAppear {
             LocationService.shared.requestPermission()
         }
