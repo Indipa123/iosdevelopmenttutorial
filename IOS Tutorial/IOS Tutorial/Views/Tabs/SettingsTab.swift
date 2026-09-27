@@ -65,6 +65,12 @@ struct SettingsTab: View {
             }
         }
         .tint(AppTheme.primary)
+        .onAppear {
+            // Migrate the previous icon-based avatar identifiers to a face avatar.
+            if PlayerAvatar(rawValue: playerAvatar) == nil {
+                playerAvatar = PlayerAvatar.aria.rawValue
+            }
+        }
         .onChange(of: dailyChallengeEnabled) { _, isEnabled in
             if isEnabled { enableDailyChallenge() }
             else { NotificationService.shared.cancelDailyChallenge() }

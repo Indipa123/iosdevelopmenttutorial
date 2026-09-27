@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		9B288E8D2FD42F08001B377B /* IOS Tutorial.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "IOS Tutorial.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9B288E8D2FD42F08001B377B /* IOS Tutorial.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "IOS Tutorial.app"; path = "/Users/indipaayomal/dev/iosdevelopmenttutorial/IOS Tutorial/build/Debug-iphoneos/IOS Tutorial.app"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -33,16 +33,7 @@
 			isa = PBXGroup;
 			children = (
 				9B288E8F2FD42F08001B377B /* IOS Tutorial */,
-				9B288E8E2FD42F08001B377B /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		9B288E8E2FD42F08001B377B /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				9B288E8D2FD42F08001B377B /* IOS Tutorial.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -95,7 +86,7 @@
 			mainGroup = 9B288E842FD42F08001B377B;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 9B288E8E2FD42F08001B377B /* Products */;
+			productRefGroup = 9B288E842FD42F08001B377B;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
